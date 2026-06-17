@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
+import 'package:yattta/notification_service.dart';
 import 'package:yattta/settings.dart';
 import 'package:yattta/theme_controller.dart';
 
 final themeController = ThemeController();
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().initialize();
   runApp(const Application());
 }
 
@@ -110,6 +113,7 @@ class _MainState extends State<Main> {
   }
 
   void _startTimer() {
+    NotificationService().requestPermissions();
     _timer?.cancel();
     setState(() {
       _timeLeft = 10;
@@ -122,6 +126,7 @@ class _MainState extends State<Main> {
             _timeLeft--;
           } else {
             _timer?.cancel();
+            NotificationService().showTimerFinishedNotification();
           }
         });
       }
