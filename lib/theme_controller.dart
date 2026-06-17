@@ -1,27 +1,53 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
 class ThemeController extends ChangeNotifier {
-  bool _isDark = true;
+  ThemeMode _themeMode = ThemeMode.system;
+  String _scheme = 'neutral';
 
-  bool get isDark => _isDark;
+  ThemeMode get themeMode => _themeMode;
+  String get scheme => _scheme;
 
-  void toggleTheme() {
-    _isDark = !_isDark;
+  void setThemeMode(ThemeMode mode) {
+    if (_themeMode == mode) return;
+    _themeMode = mode;
     notifyListeners();
   }
 
-  FThemeData get theme {
+  void setScheme(String scheme) {
+    if (_scheme == scheme) return;
+    _scheme = scheme;
+    notifyListeners();
+  }
+
+  FThemeData getTheme(Brightness platformBrightness) {
     final isTouch = const <TargetPlatform>{
       TargetPlatform.android,
       TargetPlatform.iOS,
       TargetPlatform.fuchsia,
     }.contains(defaultTargetPlatform);
 
-    if (_isDark) {
-      return isTouch ? FThemes.neutral.dark.touch : FThemes.neutral.dark.desktop;
-    } else {
-      return isTouch ? FThemes.neutral.light.touch : FThemes.neutral.light.desktop;
-    }
+    final platformTheme = switch (_scheme) {
+      'zinc' => FThemes.zinc,
+      'slate' => FThemes.slate,
+      'blue' => FThemes.blue,
+      'green' => FThemes.green,
+      'orange' => FThemes.orange,
+      'red' => FThemes.red,
+      'rose' => FThemes.rose,
+      'violet' => FThemes.violet,
+      'yellow' => FThemes.yellow,
+      _ => FThemes.neutral,
+    };
+
+    final isDark = switch (_themeMode) {
+      ThemeMode.system => platformBrightness == Brightness.dark,
+      ThemeMode.light => false,
+      ThemeMode.dark => true,
+    };
+
+    final modeTheme = isDark ? platformTheme.dark : platformTheme.light;
+    return isTouch ? modeTheme.touch : modeTheme.desktop;
   }
 }

@@ -19,11 +19,15 @@ class Application extends StatelessWidget {
     return ListenableBuilder(
       listenable: themeController,
       builder: (context, child) {
-        final theme = themeController.theme;
+        // We use the platform dispatcher to get the brightness since MaterialApp isn't built yet.
+        final platformBrightness = View.of(context).platformDispatcher.platformBrightness;
+        final theme = themeController.getTheme(platformBrightness);
+
         return MaterialApp(
           supportedLocales: FLocalizations.supportedLocales,
           localizationsDelegates: const [...FLocalizations.localizationsDelegates],
           theme: theme.toApproximateMaterialTheme(),
+          themeMode: themeController.themeMode,
           builder: (_, child) => FTheme(
             data: theme,
             child: FToaster(child: FTooltipGroup(child: child!)),
