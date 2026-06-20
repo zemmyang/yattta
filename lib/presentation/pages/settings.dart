@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 import 'package:yattta/theme_controller.dart';
+import 'package:yattta/utils/db_export.dart';
 
 class SettingsPage extends StatelessWidget {
   final ThemeController themeController;
@@ -67,6 +68,45 @@ class SettingsPage extends StatelessWidget {
                         }
                       },
                     ),
+                  ),
+                  const SizedBox(height: 32),
+                  FButton(
+                    child: const Text('Export Database'),
+                    onPress: () async {
+                      final result = await exportDatabase();
+                      if (!context.mounted) return;
+
+                      switch (result) {
+                        case ExportResult.success:
+                          showFToast(
+                            context: context,
+                            title: const Text('Database exported successfully'),
+                          );
+                        case ExportResult.notFound:
+                          showFToast(
+                            context: context,
+                            title: const Text('No database found'),
+                            description: const Text('Please create some data first.'),
+                            variant: FToastVariant.destructive,
+                          );
+                        case ExportResult.error:
+                          showFToast(
+                            context: context,
+                            title: const Text('Export failed'),
+                            description: const Text('An error occurred while exporting.'),
+                            variant: FToastVariant.destructive,
+                          );
+                        case ExportResult.webNotSupported:
+                          showFToast(
+                            context: context,
+                            title: const Text('Data export is not available on web'),
+                            variant: FToastVariant.destructive,
+                          );
+                        case ExportResult.cancelled:
+                          // Do nothing if cancelled
+                          break;
+                      }
+                    },
                   ),
                 ],
               );

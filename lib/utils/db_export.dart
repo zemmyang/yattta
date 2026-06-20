@@ -3,27 +3,44 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 
-Future<void> exportDatabase() async {
+enum ExportResult { success, cancelled, notFound, error, webNotSupported }
+
+Future<ExportResult> exportDatabase() async {
   if (kIsWeb) {
-    _exportWeb();
+    return ExportResult.webNotSupported;
   } else {
-    await _exportNative();
+    return await _exportNative();
   }
 }
 
-Future<void> _exportNative() async {
-  final dir  = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dir.path, 'app.db'));
-  await Share.shareXFiles(
-    [XFile(file.path, mimeType: 'application/x-sqlite3')],
-    subject: 'yattta database export',
-  );
-}
+Future<ExportResult> _exportNative() async {
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dir.path, 'app.db'));
 
-void _exportWeb() {
-  // Web uses IndexedDB internally — there's no raw .db file to export.
-  // The best option is to dump the data as JSON instead.
-  throw UnimplementedError('Web export not yet implemented');
+    if (!await file.exists()) {
+      return ExportResult.notFound;
+    }
+
+    final bytes = await file.readAsBytes();
+
+    final outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save Database Export',
+      fileName: 'app_export.db',
+      type: FileType.custom,
+      allowedExtensions: ['db', 'sqlite', 'sqlite3'],
+      bytes: bytes,
+    );
+
+    if (outputFile == null) {
+      return ExportResult.cancelled;
+    }
+
+    return ExportResult.success;
+  } catch (e) {
+    debugPrint('Export error: $e');
+    return ExportResult.error;
+  }
 }

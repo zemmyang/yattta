@@ -24,6 +24,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
 	<key>NSUserNotificationAlertUsageDescription</key>
 	<string>We need to notify you when your timer finishes.</string>
 	<key>LSRequiresIPhoneOS</key>
