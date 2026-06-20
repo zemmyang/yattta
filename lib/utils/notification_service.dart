@@ -75,7 +75,7 @@ class NotificationService {
     }
   }
 
-  Future<void> showTimerFinishedNotification() async {
+  Future<void> showTimerFinishedNotification({required String title, required String body}) async {
     try {
       const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
         'timer_channel',
@@ -96,8 +96,8 @@ class NotificationService {
 
       await _notificationsPlugin.show(
         id: 0,
-        title: 'Timer Finished',
-        body: 'Your 10-second timer has completed!',
+        title: title,
+        body: body,
         notificationDetails: notificationDetails,
       );
     } catch (e) {

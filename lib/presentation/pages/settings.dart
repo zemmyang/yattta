@@ -92,7 +92,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   builder: (context, _) => Column(
                     children: [
                       FTextField(
-                        label: const Text('Countdown Duration (seconds)'),
+                        label: const Text('Work Duration (minutes)'),
                         description: const Text('Set the default timer duration for todos'),
                         keyboardType: TextInputType.number,
                         control: FTextFieldControl.managed(
@@ -104,6 +104,65 @@ class _SettingsPageState extends State<SettingsPage> {
                             }
                           },
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      FTextField(
+                        label: const Text('Break Duration (minutes)'),
+                        description: const Text('Set the default break duration'),
+                        keyboardType: TextInputType.number,
+                        control: FTextFieldControl.managed(
+                          initial: TextEditingValue(text: settingsController.breakDuration.toString()),
+                          onChange: (value) {
+                            final duration = int.tryParse(value.text);
+                            if (duration != null) {
+                              settingsController.setBreakDuration(duration);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FTextField(
+                        label: const Text('Long Break Duration (minutes)'),
+                        description: const Text('Set the duration for long breaks'),
+                        keyboardType: TextInputType.number,
+                        control: FTextFieldControl.managed(
+                          initial: TextEditingValue(text: settingsController.longBreakDuration.toString()),
+                          onChange: (value) {
+                            final duration = int.tryParse(value.text);
+                            if (duration != null) {
+                              settingsController.setLongBreakDuration(duration);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FTextField(
+                        label: const Text('Sessions until Long Break'),
+                        description: const Text('Number of work sessions before a long break'),
+                        keyboardType: TextInputType.number,
+                        control: FTextFieldControl.managed(
+                          initial: TextEditingValue(text: settingsController.sessionsUntilLongBreak.toString()),
+                          onChange: (value) {
+                            final count = int.tryParse(value.text);
+                            if (count != null) {
+                              settingsController.setSessionsUntilLongBreak(count);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FSwitch(
+                        label: const Text('Auto-start Breaks'),
+                        description: const Text('Start break timers automatically after work'),
+                        value: settingsController.autoStartBreaks,
+                        onChange: (value) => settingsController.setAutoStartBreaks(value),
+                      ),
+                      const SizedBox(height: 16),
+                      FSwitch(
+                        label: const Text('Auto-start Work'),
+                        description: const Text('Start work timers automatically after breaks'),
+                        value: settingsController.autoStartWork,
+                        onChange: (value) => settingsController.setAutoStartWork(value),
                       ),
                     ],
                   ),

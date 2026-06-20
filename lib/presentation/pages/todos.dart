@@ -28,6 +28,8 @@ class TodosPage extends StatelessWidget {
   }
 }
 
+enum TimerMode { work, shortBreak, longBreak }
+
 class Main extends StatefulWidget {
   const Main({super.key});
 
@@ -36,21 +38,34 @@ class Main extends StatefulWidget {
 }
 
 class _MainState extends State<Main> {
-  late int _timeLeft;
+  late int _timeLeft; // in seconds
   Timer? _timer;
   bool _isPaused = false;
+  TimerMode _timerMode = TimerMode.work;
+  int _sessionsCompleted = 0;
+
+  int get _currentDurationMinutes {
+    switch (_timerMode) {
+      case TimerMode.work:
+        return settingsController.timerDuration;
+      case TimerMode.shortBreak:
+        return settingsController.breakDuration;
+      case TimerMode.longBreak:
+        return settingsController.longBreakDuration;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _timeLeft = settingsController.timerDuration;
+    _timeLeft = _currentDurationMinutes * 60;
     settingsController.addListener(_onSettingsControllerChange);
   }
 
   void _onSettingsControllerChange() {
     if (_timer == null || !_timer!.isActive) {
       setState(() {
-        _timeLeft = settingsController.timerDuration;
+        _timeLeft = _currentDurationMinutes * 60;
       });
     }
   }
@@ -59,7 +74,7 @@ class _MainState extends State<Main> {
     NotificationService().requestPermissions();
     _timer?.cancel();
     setState(() {
-      _timeLeft = settingsController.timerDuration;
+      _timeLeft = _currentDurationMinutes * 60;
       _isPaused = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -69,7 +84,40 @@ class _MainState extends State<Main> {
             _timeLeft--;
           } else {
             _timer?.cancel();
-            NotificationService().showTimerFinishedNotification();
+            final finishedMode = _timerMode;
+            String title;
+            String body;
+            bool shouldAutoStart = false;
+
+            if (finishedMode == TimerMode.work) {
+              _sessionsCompleted++;
+              if (_sessionsCompleted % settingsController.sessionsUntilLongBreak == 0) {
+                _timerMode = TimerMode.longBreak;
+                title = 'Work Finished';
+                body = 'Great job! Time for a long break. Ready for ${settingsController.longBreakDuration} minutes?';
+              } else {
+                _timerMode = TimerMode.shortBreak;
+                title = 'Work Finished';
+                body = 'Time for a break! Ready for ${settingsController.breakDuration} minutes?';
+              }
+              shouldAutoStart = settingsController.autoStartBreaks;
+            } else {
+              _timerMode = TimerMode.work;
+              title = finishedMode == TimerMode.shortBreak ? 'Short Break Finished' : 'Long Break Finished';
+              body = 'Break over! Ready to focus for ${settingsController.timerDuration} minutes?';
+              shouldAutoStart = settingsController.autoStartWork;
+            }
+
+            _timeLeft = _currentDurationMinutes * 60;
+
+            NotificationService().showTimerFinishedNotification(
+              title: title,
+              body: body,
+            );
+
+            if (shouldAutoStart) {
+              _startTimer();
+            }
           }
         });
       }
@@ -88,6 +136,28 @@ class _MainState extends State<Main> {
     super.dispose();
   }
 
+  String _getModeLabel() {
+    switch (_timerMode) {
+      case TimerMode.work:
+        return 'WORK';
+      case TimerMode.shortBreak:
+        return 'SHORT BREAK';
+      case TimerMode.longBreak:
+        return 'LONG BREAK';
+    }
+  }
+
+  Color _getTimerColor(BuildContext context) {
+    switch (_timerMode) {
+      case TimerMode.work:
+        return FTheme.of(context).colors.primary;
+      case TimerMode.shortBreak:
+        return Colors.green;
+      case TimerMode.longBreak:
+        return Colors.blue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
@@ -98,6 +168,25 @@ class _MainState extends State<Main> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Text(
+                  _getModeLabel(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: size * 0.1,
+                    color: _getTimerColor(context),
+                  ),
+                ),
+                if (_timerMode == TimerMode.work) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
+                    style: TextStyle(
+                      fontSize: size * 0.05,
+                      color: FTheme.of(context).colors.mutedForeground,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
                 SizedBox(
                   width: size,
                   height: size,
@@ -106,17 +195,17 @@ class _MainState extends State<Main> {
                     children: [
                       SizedBox.expand(
                         child: CircularProgressIndicator(
-                          value: _timeLeft / settingsController.timerDuration,
+                          value: _timeLeft / (_currentDurationMinutes * 60),
                           strokeWidth: size * 0.05,
                           backgroundColor: FTheme.of(context).colors.border,
-                          valueColor: AlwaysStoppedAnimation(FTheme.of(context).colors.primary),
+                          valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
                         ),
                       ),
                       Text(
-                        '$_timeLeft',
+                        '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: size * 0.3,
+                          fontSize: size * 0.2,
                         ),
                       ),
                     ],
