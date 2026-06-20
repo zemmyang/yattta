@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 
 enum TodoStatus { pending, inProgress, done, cancelled }
 enum TaskStatus { active, archived }

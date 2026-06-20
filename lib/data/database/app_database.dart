@@ -1,9 +1,6 @@
 // app_database.dart
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import 'dart:io';
+import 'connection/connection.dart';
 
 import '../tables/todos_table.dart';
 import '../tables/tasks_table.dart';
@@ -53,7 +50,7 @@ part 'app_database.g.dart';
 )
 
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(connect());
 
   @override
   int get schemaVersion => 1;
@@ -63,27 +60,4 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
   );
-}
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dir  = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'app.db'));
-    return NativeDatabase.createInBackground(file);
-  });
-}
-
-void _assertSingleTarget(RemindersCompanion entry) {
-  final count = [
-    entry.todoId.present    && entry.todoId.value    != null,
-    entry.taskId.present    && entry.taskId.value    != null,
-    entry.trackerId.present && entry.trackerId.value != null,
-  ].where((b) => b).length;
-
-  if (count != 1) {
-    throw ArgumentError(
-      'A reminder must reference exactly one of: todoId, taskId, trackerId. '
-          'Got $count non-null values.',
-    );
-  }
 }

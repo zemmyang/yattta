@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 import '../database/app_database.dart';
-import '../tables/todos_table.dart';
 import '../tables/tags_table.dart';
 import '../tables/junction_tables.dart';
 
