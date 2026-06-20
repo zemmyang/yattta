@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 import 'package:yattta/utils/notification_service.dart';
+import 'package:yattta/utils/settings_controller.dart';
 
 class TodosPage extends StatelessWidget {
   final VoidCallback? onMenuPressed;
@@ -35,20 +36,30 @@ class Main extends StatefulWidget {
 }
 
 class _MainState extends State<Main> {
-  int _timeLeft = 10;
+  late int _timeLeft;
   Timer? _timer;
   bool _isPaused = false;
 
   @override
   void initState() {
     super.initState();
+    _timeLeft = settingsController.timerDuration;
+    settingsController.addListener(_onSettingsControllerChange);
+  }
+
+  void _onSettingsControllerChange() {
+    if (_timer == null || !_timer!.isActive) {
+      setState(() {
+        _timeLeft = settingsController.timerDuration;
+      });
+    }
   }
 
   void _startTimer() {
     NotificationService().requestPermissions();
     _timer?.cancel();
     setState(() {
-      _timeLeft = 10;
+      _timeLeft = settingsController.timerDuration;
       _isPaused = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -72,6 +83,7 @@ class _MainState extends State<Main> {
 
   @override
   void dispose() {
+    settingsController.removeListener(_onSettingsControllerChange);
     _timer?.cancel();
     super.dispose();
   }
@@ -94,7 +106,7 @@ class _MainState extends State<Main> {
                     children: [
                       SizedBox.expand(
                         child: CircularProgressIndicator(
-                          value: _timeLeft / 10,
+                          value: _timeLeft / settingsController.timerDuration,
                           strokeWidth: size * 0.05,
                           backgroundColor: FTheme.of(context).colors.border,
                           valueColor: AlwaysStoppedAnimation(FTheme.of(context).colors.primary),
