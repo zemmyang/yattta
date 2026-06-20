@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
-import 'package:yattta/theme_controller.dart';
+import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/db_export.dart';
 
 class SettingsPage extends StatelessWidget {
