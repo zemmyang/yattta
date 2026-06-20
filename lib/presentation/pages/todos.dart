@@ -5,7 +5,9 @@ import 'package:forui/forui.dart';
 import 'package:yattta/utils/notification_service.dart';
 
 class TodosPage extends StatelessWidget {
-  const TodosPage({super.key});
+  final VoidCallback? onMenuPressed;
+
+  const TodosPage({super.key, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +15,11 @@ class TodosPage extends StatelessWidget {
       header: FHeader.nested(
         title: const Text('Todos'),
         prefixes: [
-          FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
+          if (onMenuPressed != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.menu),
+              onPress: onMenuPressed!,
+            ),
         ],
       ),
       child: const Main(),

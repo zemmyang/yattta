@@ -5,8 +5,6 @@ import 'package:yattta/presentation/pages/sidebar.dart';
 import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/utils/theme_controller.dart';
 
-final themeController = ThemeController();
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().initialize();
@@ -46,17 +44,8 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Yattta'),
-        prefixes: [
-          FHeaderAction(
-            icon: const Icon(FLucideIcons.menu),
-            onPress: () => showAppSidebar(context, themeController),
-          ),
-        ],
-      ),
-      child: const TodosPage(),
+    return TodosPage(
+      onMenuPressed: () => showAppSidebar(context, themeController),
     );
   }
 }

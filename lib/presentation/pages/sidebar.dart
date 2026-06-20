@@ -8,9 +8,27 @@ import 'package:yattta/utils/theme_controller.dart';
 
 void showAppSidebar(BuildContext context, ThemeController themeController) {
   final items = [
-    (icon: FLucideIcons.listTodo, label: 'Todos', builder: (context) => const TodosPage()),
-    (icon: FLucideIcons.clipboardList, label: 'Tasks', builder: (context) => const TasksPage()),
-    (icon: FLucideIcons.activity, label: 'Trackers', builder: (context) => const TrackersPage()),
+    (
+      icon: FLucideIcons.listTodo,
+      label: 'Todos',
+      builder: (context) => TodosPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          )
+    ),
+    (
+      icon: FLucideIcons.clipboardList,
+      label: 'Tasks',
+      builder: (context) => TasksPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          )
+    ),
+    (
+      icon: FLucideIcons.activity,
+      label: 'Trackers',
+      builder: (context) => TrackersPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          )
+    ),
     (
       icon: FLucideIcons.settings,
       label: 'Settings',
@@ -36,10 +54,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
                 icon: Icon(item.icon),
                 label: Text(item.label),
                 onPress: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: item.builder),
-                  );
+                  Navigator.of(context).pop(); // Close sidebar
+                  if (item.label == 'Todos') {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  } else {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: item.builder),
+                    );
+                  }
                 },
               ),
             ),

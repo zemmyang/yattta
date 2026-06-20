@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
+final themeController = ThemeController();
+
 class ThemeController extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   String _scheme = 'neutral';
