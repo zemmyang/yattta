@@ -18,23 +18,18 @@ class Application extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: themeController,
-      builder: (context, child) {
-        // We use the platform dispatcher to get the brightness since MaterialApp isn't built yet.
-        final platformBrightness = View.of(context).platformDispatcher.platformBrightness;
-        final theme = themeController.getTheme(platformBrightness);
-
-        return MaterialApp(
-          supportedLocales: FLocalizations.supportedLocales,
-          localizationsDelegates: const [...FLocalizations.localizationsDelegates],
-          theme: theme.toApproximateMaterialTheme(),
-          themeMode: themeController.themeMode,
-          builder: (_, child) => FTheme(
-            data: theme,
-            child: FToaster(child: FTooltipGroup(child: child!)),
-          ),
-          home: const HomePage(),
-        );
-      },
+      builder: (context, _) => MaterialApp(
+        supportedLocales: FLocalizations.supportedLocales,
+        localizationsDelegates: const [...FLocalizations.localizationsDelegates],
+        theme: themeController.getTheme(Brightness.light).toApproximateMaterialTheme(),
+        darkTheme: themeController.getTheme(Brightness.dark).toApproximateMaterialTheme(),
+        themeMode: themeController.themeMode,
+        builder: (context, child) => FTheme(
+          data: themeController.getTheme(Theme.of(context).brightness),
+          child: FToaster(child: FTooltipGroup(child: child!)),
+        ),
+        home: const HomePage(),
+      ),
     );
   }
 }

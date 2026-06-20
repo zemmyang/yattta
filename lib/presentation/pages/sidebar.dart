@@ -56,7 +56,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
                 onPress: () {
                   Navigator.of(context).pop(); // Close sidebar
                   if (item.label == 'Todos') {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: item.builder),
+                      (route) => false,
+                    );
+                  } else if (item.label == 'Settings') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: item.builder),
+                    );
                   } else {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(builder: item.builder),

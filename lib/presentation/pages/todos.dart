@@ -35,7 +35,6 @@ class Main extends StatefulWidget {
 }
 
 class _MainState extends State<Main> {
-  int _count = 0;
   int _timeLeft = 10;
   Timer? _timer;
   bool _isPaused = false;
@@ -78,51 +77,61 @@ class _MainState extends State<Main> {
   }
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 10,
-          children: [
-            Text('Count: $_count'),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: _timeLeft / 10,
-                    strokeWidth: 3,
-                    backgroundColor: FTheme.of(context).colors.border,
-                    valueColor: AlwaysStoppedAnimation(FTheme.of(context).colors.primary),
-                  ),
-                  Text(
-                    '$_timeLeft',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Row(
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.maxWidth < constraints.maxHeight
+              ? constraints.maxWidth * 0.8
+              : constraints.maxHeight * 0.8;
+          return Center(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                FButton(
-                  onPress: () {
-                    setState(() => _count++);
-                    _startTimer();
-                  },
-                  suffix: const Icon(FLucideIcons.play),
-                  child: const Text('Start'),
+                SizedBox(
+                  width: size,
+                  height: size,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: _timeLeft / 10,
+                          strokeWidth: size * 0.05,
+                          backgroundColor: FTheme.of(context).colors.border,
+                          valueColor: AlwaysStoppedAnimation(FTheme.of(context).colors.primary),
+                        ),
+                      ),
+                      Text(
+                        '$_timeLeft',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: size * 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 10),
-                FButton(
-                  onPress: _togglePause,
-                  suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
-                  child: Text(_isPaused ? 'Resume' : 'Pause'),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FButton(
+                      onPress: () {
+                        _startTimer();
+                      },
+                      suffix: const Icon(FLucideIcons.play),
+                      child: const Text('Start'),
+                    ),
+                    const SizedBox(width: 10),
+                    FButton(
+                      onPress: _togglePause,
+                      suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
+                      child: Text(_isPaused ? 'Resume' : 'Pause'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       );
 }
