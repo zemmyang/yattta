@@ -83,43 +83,51 @@ class _MainState extends State<Main> {
           if (_timeLeft > 0) {
             _timeLeft--;
           } else {
-            _timer?.cancel();
-            final finishedMode = _timerMode;
-            String title;
-            String body;
-            bool shouldAutoStart = false;
-
-            if (finishedMode == TimerMode.work) {
-              _sessionsCompleted++;
-              if (_sessionsCompleted % settingsController.sessionsUntilLongBreak == 0) {
-                _timerMode = TimerMode.longBreak;
-                title = 'Work Finished';
-                body = 'Great job! Time for a long break. Ready for ${settingsController.longBreakDuration} minutes?';
-              } else {
-                _timerMode = TimerMode.shortBreak;
-                title = 'Work Finished';
-                body = 'Time for a break! Ready for ${settingsController.breakDuration} minutes?';
-              }
-              shouldAutoStart = settingsController.autoStartBreaks;
-            } else {
-              _timerMode = TimerMode.work;
-              title = finishedMode == TimerMode.shortBreak ? 'Short Break Finished' : 'Long Break Finished';
-              body = 'Break over! Ready to focus for ${settingsController.timerDuration} minutes?';
-              shouldAutoStart = settingsController.autoStartWork;
-            }
-
-            _timeLeft = _currentDurationMinutes * 60;
-
-            NotificationService().showTimerFinishedNotification(
-              title: title,
-              body: body,
-            );
-
-            if (shouldAutoStart) {
-              _startTimer();
-            }
+            _finishSession();
           }
         });
+      }
+    });
+  }
+
+  void _finishSession() {
+    _timer?.cancel();
+    setState(() {
+      _timer = null;
+      _isPaused = false;
+      final finishedMode = _timerMode;
+      String title;
+      String body;
+      bool shouldAutoStart = false;
+
+      if (finishedMode == TimerMode.work) {
+        _sessionsCompleted++;
+        if (_sessionsCompleted % settingsController.sessionsUntilLongBreak == 0) {
+          _timerMode = TimerMode.longBreak;
+          title = 'Work Finished';
+          body = 'Great job! Time for a long break. Ready for ${settingsController.longBreakDuration} minutes?';
+        } else {
+          _timerMode = TimerMode.shortBreak;
+          title = 'Work Finished';
+          body = 'Time for a break! Ready for ${settingsController.breakDuration} minutes?';
+        }
+        shouldAutoStart = settingsController.autoStartBreaks;
+      } else {
+        _timerMode = TimerMode.work;
+        title = finishedMode == TimerMode.shortBreak ? 'Short Break Finished' : 'Long Break Finished';
+        body = 'Break over! Ready to focus for ${settingsController.timerDuration} minutes?';
+        shouldAutoStart = settingsController.autoStartWork;
+      }
+
+      _timeLeft = _currentDurationMinutes * 60;
+
+      NotificationService().showTimerFinishedNotification(
+        title: title,
+        body: body,
+      );
+
+      if (shouldAutoStart) {
+        _startTimer();
       }
     });
   }
@@ -161,76 +169,86 @@ class _MainState extends State<Main> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final size = constraints.maxWidth < constraints.maxHeight
-              ? constraints.maxWidth * 0.8
-              : constraints.maxHeight * 0.8;
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _getModeLabel(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: size * 0.1,
-                    color: _getTimerColor(context),
-                  ),
-                ),
-                if (_timerMode == TimerMode.work) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
-                    style: TextStyle(
-                      fontSize: size * 0.05,
-                      color: FTheme.of(context).colors.mutedForeground,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: size,
-                  height: size,
-                  child: Stack(
-                    alignment: Alignment.center,
+          final size = (constraints.maxWidth < constraints.maxHeight
+                  ? constraints.maxWidth * 0.8
+                  : constraints.maxHeight * 0.8)
+              .clamp(0.0, 400.0);
+          return SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox.expand(
-                        child: CircularProgressIndicator(
-                          value: _timeLeft / (_currentDurationMinutes * 60),
-                          strokeWidth: size * 0.05,
-                          backgroundColor: FTheme.of(context).colors.border,
-                          valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
-                        ),
-                      ),
                       Text(
-                        '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                        _getModeLabel(),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: size * 0.2,
+                          fontSize: size * 0.1,
+                          color: _getTimerColor(context),
                         ),
                       ),
+                      if (_timerMode == TimerMode.work) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
+                          style: TextStyle(
+                            fontSize: size * 0.05,
+                            color: FTheme.of(context).colors.mutedForeground,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: size,
+                        height: size,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox.expand(
+                              child: CircularProgressIndicator(
+                                value: _timeLeft / (_currentDurationMinutes * 60),
+                                strokeWidth: size * 0.05,
+                                backgroundColor: FTheme.of(context).colors.border,
+                                valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
+                              ),
+                            ),
+                            Text(
+                              '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: size * 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      if (_timer == null)
+                        FButton(
+                          onPress: _startTimer,
+                          suffix: const Icon(FLucideIcons.play),
+                          child: const Text('Start'),
+                        )
+                      else ...[
+                        FButton(
+                          onPress: _togglePause,
+                          suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
+                          child: Text(_isPaused ? 'Resume' : 'Pause'),
+                        ),
+                        const SizedBox(height: 10),
+                        FButton(
+                          variant: FButtonVariant.outline,
+                          onPress: _finishSession,
+                          suffix: const Icon(FLucideIcons.squareStop),
+                          child: const Text('Stop'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FButton(
-                      onPress: () {
-                        _startTimer();
-                      },
-                      suffix: const Icon(FLucideIcons.play),
-                      child: const Text('Start'),
-                    ),
-                    const SizedBox(width: 10),
-                    FButton(
-                      onPress: _togglePause,
-                      suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
-                      child: Text(_isPaused ? 'Resume' : 'Pause'),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           );
         },

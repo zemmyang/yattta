@@ -15,6 +15,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _accordionKey = GlobalKey();
+  final Set<int> _expandedIndices = {0, 1};
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,41 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           FAccordion(
             key: _accordionKey,
+            control: FAccordionControl.lifted(
+              expanded: (index) => _expandedIndices.contains(index),
+              onChange: (index, expanded) => setState(() {
+                if (expanded) {
+                  _expandedIndices.add(index);
+                } else {
+                  _expandedIndices.remove(index);
+                }
+              }),
+            ),
             children: [
+              FAccordionItem(
+                title: const Text('General'),
+                child: ListenableBuilder(
+                  listenable: settingsController,
+                  builder: (context, _) => FSelect<InitialPage>(
+                    label: const Text('Initial Page'),
+                    description: const Text('Select the page to show when opening the app'),
+                    hint: 'Select page',
+                    items: const {
+                      'Todos': InitialPage.todos,
+                      'Tasks': InitialPage.tasks,
+                      'Trackers': InitialPage.trackers,
+                    },
+                    control: FSelectControl.lifted(
+                      value: settingsController.initialPage,
+                      onChange: (value) {
+                        if (value != null) {
+                          settingsController.setInitialPage(value);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
               FAccordionItem(
                 title: const Text('Appearance'),
                 child: ListenableBuilder(
@@ -210,6 +245,38 @@ class _SettingsPageState extends State<SettingsPage> {
                             break;
                         }
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    FButton(
+                      variant: FButtonVariant.outline,
+                      child: const Text('Reset Settings'),
+                      onPress: () => showFDialog(
+                        context: context,
+                        builder: (context, style, animation) => FDialog(
+                          animation: animation,
+                          title: const Text('Reset Settings'),
+                          body: const Text('Are you sure you want to reset all settings to their default values?'),
+                          actions: [
+                            FButton(
+                              child: const Text('Reset'),
+                              onPress: () {
+                                settingsController.reset();
+                                widget.themeController.reset();
+                                Navigator.of(context).pop();
+                                showFToast(
+                                  context: context,
+                                  title: const Text('Settings reset'),
+                                );
+                              },
+                            ),
+                            FButton(
+                              variant: FButtonVariant.outline,
+                              child: const Text('Cancel'),
+                              onPress: () => Navigator.of(context).pop(),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

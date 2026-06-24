@@ -18,6 +18,7 @@ import '../daos/tasks_dao.dart';
 import '../daos/trackers_dao.dart';
 import '../daos/reminders_dao.dart';
 import '../daos/tags_dao.dart';
+import '../daos/settings_dao.dart';
 
 import '../../domain/models/recurrence_rule.dart';
 import '../converters/recurrence_rule_converter.dart';
@@ -46,6 +47,7 @@ part 'app_database.g.dart';
     TrackersDao,
     RemindersDao,
     TagsDao,
+    SettingsDao,
   ],
 )
 
@@ -61,3 +63,5 @@ class AppDatabase extends _$AppDatabase {
     onCreate: (m) => m.createAll(),
   );
 }
+
+final db = AppDatabase();

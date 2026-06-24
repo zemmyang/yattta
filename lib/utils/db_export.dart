@@ -26,7 +26,7 @@ Future<ExportResult> _exportNative() async {
 
     final bytes = await file.readAsBytes();
 
-    final outputFile = await FilePicker.platform.saveFile(
+    final outputPath = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Database Export',
       fileName: 'app_export.db',
       type: FileType.custom,
@@ -34,9 +34,13 @@ Future<ExportResult> _exportNative() async {
       bytes: bytes,
     );
 
-    if (outputFile == null) {
+    if (outputPath == null) {
       return ExportResult.cancelled;
     }
+
+    // Manually write the bytes to the selected path to ensure it works on Windows/Desktop
+    final outputFile = File(outputPath);
+    await outputFile.writeAsBytes(bytes);
 
     return ExportResult.success;
   } catch (e) {

@@ -1,25 +1,51 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
+import '../data/database/app_database.dart';
+import '../data/daos/settings_dao.dart';
 
 final themeController = ThemeController();
 
 class ThemeController extends ChangeNotifier {
+  SettingsDao? _dao;
+
   ThemeMode _themeMode = ThemeMode.system;
   String _scheme = 'neutral';
 
   ThemeMode get themeMode => _themeMode;
   String get scheme => _scheme;
 
+  Future<void> initialize(AppDatabase db) async {
+    _dao = db.settingsDao;
+
+    _scheme = await _dao!.getString('themeScheme') ?? _scheme;
+    final modeStr = await _dao!.getString('themeMode');
+    if (modeStr != null) {
+      _themeMode = ThemeMode.values.firstWhere(
+        (e) => e.name == modeStr,
+        orElse: () => ThemeMode.system,
+      );
+    }
+    notifyListeners();
+  }
+
   void setThemeMode(ThemeMode mode) {
     if (_themeMode == mode) return;
     _themeMode = mode;
+    _dao?.setString('themeMode', mode.name);
     notifyListeners();
   }
 
   void setScheme(String scheme) {
     if (_scheme == scheme) return;
     _scheme = scheme;
+    _dao?.setString('themeScheme', scheme);
+    notifyListeners();
+  }
+
+  void reset() {
+    _themeMode = ThemeMode.system;
+    _scheme = 'neutral';
     notifyListeners();
   }
 
