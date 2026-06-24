@@ -16,6 +16,7 @@ class SettingsController extends ChangeNotifier {
   bool _autoStartBreaks = false;
   bool _autoStartWork = false;
   InitialPage _initialPage = InitialPage.todos;
+  String _syncServerAddress = '';
 
   int get timerDuration => _timerDuration;
   int get breakDuration => _breakDuration;
@@ -24,6 +25,7 @@ class SettingsController extends ChangeNotifier {
   bool get autoStartBreaks => _autoStartBreaks;
   bool get autoStartWork => _autoStartWork;
   InitialPage get initialPage => _initialPage;
+  String get syncServerAddress => _syncServerAddress;
 
   Future<void> initialize(AppDatabase db) async {
     _dao = db.settingsDao;
@@ -34,6 +36,7 @@ class SettingsController extends ChangeNotifier {
     _sessionsUntilLongBreak = await _dao!.getInt('sessionsUntilLongBreak') ?? _sessionsUntilLongBreak;
     _autoStartBreaks = await _dao!.getBool('autoStartBreaks') ?? _autoStartBreaks;
     _autoStartWork = await _dao!.getBool('autoStartWork') ?? _autoStartWork;
+    _syncServerAddress = await _dao!.getString('syncServerAddress') ?? _syncServerAddress;
 
     final initialPageStr = await _dao!.getString('initialPage');
     if (initialPageStr != null) {
@@ -95,6 +98,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSyncServerAddress(String address) {
+    if (_syncServerAddress == address) return;
+    _syncServerAddress = address;
+    _dao?.setString('syncServerAddress', address);
+    notifyListeners();
+  }
+
   Future<void> reset() async {
     await _dao?.deleteAll();
     _timerDuration = 10;
@@ -104,6 +114,7 @@ class SettingsController extends ChangeNotifier {
     _autoStartBreaks = false;
     _autoStartWork = false;
     _initialPage = InitialPage.todos;
+    _syncServerAddress = '';
     notifyListeners();
   }
 }

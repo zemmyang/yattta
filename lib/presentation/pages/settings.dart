@@ -208,6 +208,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    FTextField(
+                      enabled: false,
+                      label: const Text('Sync Server Address/IP'),
+                      description: const Text('Server for multi-device synchronization (Coming soon)'),
+                      hint: 'e.g. 192.168.1.100',
+                    ),
+                    const SizedBox(height: 16),
                     FButton(
                       child: const Text('Export Database'),
                       onPress: () async {
