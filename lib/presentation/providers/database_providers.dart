@@ -25,3 +25,15 @@ final remindersDaoProvider = Provider(
 final tagsDaoProvider = Provider(
       (ref) => ref.watch(appDatabaseProvider).tagsDao,
 );
+
+final activeTasksProvider = StreamProvider((ref) {
+  return ref.watch(tasksDaoProvider).watchAll();
+});
+
+final todayLogsProvider = StreamProvider((ref) {
+  return ref.watch(tasksDaoProvider).watchLogsForDay(DateTime.now());
+});
+
+final activeRemindersProvider = StreamProvider((ref) {
+  return ref.watch(remindersDaoProvider).watchAllActive();
+});

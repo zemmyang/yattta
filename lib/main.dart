@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
@@ -16,7 +17,7 @@ void main() async {
   await settingsController.initialize(db);
   await themeController.initialize(db);
 
-  runApp(const Application());
+  runApp(const ProviderScope(child: Application()));
 }
 
 class Application extends StatelessWidget {

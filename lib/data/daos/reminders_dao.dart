@@ -36,6 +36,10 @@ class RemindersDao extends DatabaseAccessor<AppDatabase>
         r.trackerId.equals(trackerId) & r.deletedAt.isNull()))
           .get();
 
+  Stream<List<Reminder>> watchAllActive() => (select(reminders)
+        ..where((r) => r.deletedAt.isNull() & r.isActive.equals(true)))
+      .watch();
+
   Future<void> markSent(String id) =>
       (update(reminders)..where((r) => r.id.equals(id)))
           .write(RemindersCompanion(
