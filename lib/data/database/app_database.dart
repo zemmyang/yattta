@@ -1,5 +1,8 @@
 // app_database.dart
+import 'dart:io';
 import 'package:drift/drift.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'connection/connection.dart';
 
 import '../tables/todos_table.dart';
@@ -65,3 +68,23 @@ class AppDatabase extends _$AppDatabase {
 }
 
 final db = AppDatabase();
+
+Future<void> deleteDatabaseFile() async {
+  await db.close();
+  if (identical(0, 0.0)) {
+    // Web - Drift doesn't have a simple way to delete IndexedDB via its API here
+    // But we can clear tables at least if needed, or just let users clear browser data
+    return;
+  }
+  
+  // Native
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dir.path, 'app.db'));
+    if (await file.exists()) {
+      await file.delete();
+    }
+  } catch (e) {
+    print('Error deleting database: $e');
+  }
+}

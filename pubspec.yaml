@@ -43,6 +43,8 @@ dependencies:
   path_provider: ^2.1.6
   sqlite3_flutter_libs: ^0.6.0+eol
   uuid: ^4.5.3
+  heatmap_calendar_plus: ^2.3.0
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

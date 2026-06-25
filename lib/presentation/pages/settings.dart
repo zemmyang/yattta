@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
+import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/utils/db_export.dart';
@@ -256,23 +258,61 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 16),
                     FButton(
                       variant: FButtonVariant.outline,
-                      child: const Text('Reset Settings'),
+                      child: const Text('Reset Everything'),
                       onPress: () => showFDialog(
                         context: context,
                         builder: (context, style, animation) => FDialog(
                           animation: animation,
-                          title: const Text('Reset Settings'),
-                          body: const Text('Are you sure you want to reset all settings to their default values?'),
+                          title: const Text('Reset Everything'),
+                          body: const Text('This will delete ALL your data and reset all settings. This action cannot be undone. Are you sure?'),
                           actions: [
                             FButton(
-                              child: const Text('Reset'),
+                              variant: FButtonVariant.destructive,
+                              child: const Text('Yes, Reset'),
                               onPress: () {
-                                settingsController.reset();
-                                widget.themeController.reset();
                                 Navigator.of(context).pop();
-                                showFToast(
+                                showFDialog(
                                   context: context,
-                                  title: const Text('Settings reset'),
+                                  builder: (context, style, animation) => FDialog(
+                                    animation: animation,
+                                    title: const Text('Final Confirmation'),
+                                    body: const Text('ARE YOU ABSOLUTELY SURE? All your todos, tasks, and trackers will be PERMANENTLY DELETED.'),
+                                    actions: [
+                                      FButton(
+                                        variant: FButtonVariant.destructive,
+                                        child: const Text('PERMANENTLY DELETE'),
+                                        onPress: () async {
+                                          final navigator = Navigator.of(context);
+                                          
+                                          // 1. Reset settings first while DB is still open
+                                          settingsController.reset();
+                                          widget.themeController.reset();
+                                          
+                                          // 2. Small delay to let settings persist if needed
+                                          await Future.delayed(const Duration(milliseconds: 100));
+                                          
+                                          // 3. Delete DB file (closes connection)
+                                          await deleteDatabaseFile();
+                                          
+                                          if (context.mounted) {
+                                            navigator.pop(); // Close dialog
+                                            showFToast(
+                                              context: context,
+                                              title: const Text('App Reset'),
+                                              description: const Text('The app will now close. Please restart it.'),
+                                            );
+                                            await Future.delayed(const Duration(seconds: 2));
+                                            exit(0);
+                                          }
+                                        },
+                                      ),
+                                      FButton(
+                                        variant: FButtonVariant.outline,
+                                        child: const Text('Cancel'),
+                                        onPress: () => Navigator.of(context).pop(),
+                                      ),
+                                    ],
+                                  ),
                                 );
                               },
                             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
+import 'add_tracker.dart';
 
 class TrackersPage extends StatelessWidget {
   final VoidCallback? onMenuPressed;
@@ -19,8 +20,22 @@ class TrackersPage extends StatelessWidget {
             ),
         ],
       ),
-      child: const Center(
-        child: Text('This is the Trackers page'),
+      child: Stack(
+        children: [
+          const Center(
+            child: Text('This is the Trackers page'),
+          ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FButton.icon(
+              onPress: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AddTrackerPage()),
+              ),
+              child: const Icon(FLucideIcons.plus),
+            ),
+          ),
+        ],
       ),
     );
   }
