@@ -19,6 +19,7 @@ class SettingsController extends ChangeNotifier {
   bool _autoStartWork = false;
   InitialPage _initialPage = InitialPage.todos;
   UserMode _userMode = UserMode.standard;
+  int _startOfWeek = DateTime.monday;
   String _syncServerAddress = '';
 
   int get timerDuration => _timerDuration;
@@ -29,6 +30,7 @@ class SettingsController extends ChangeNotifier {
   bool get autoStartWork => _autoStartWork;
   InitialPage get initialPage => _initialPage;
   UserMode get userMode => _userMode;
+  int get startOfWeek => _startOfWeek;
   String get syncServerAddress => _syncServerAddress;
 
   Future<void> initialize(AppDatabase db) async {
@@ -40,6 +42,7 @@ class SettingsController extends ChangeNotifier {
     _sessionsUntilLongBreak = await _dao!.getInt('sessionsUntilLongBreak') ?? _sessionsUntilLongBreak;
     _autoStartBreaks = await _dao!.getBool('autoStartBreaks') ?? _autoStartBreaks;
     _autoStartWork = await _dao!.getBool('autoStartWork') ?? _autoStartWork;
+    _startOfWeek = await _dao!.getInt('startOfWeek') ?? _startOfWeek;
     _syncServerAddress = await _dao!.getString('syncServerAddress') ?? _syncServerAddress;
 
     final initialPageStr = await _dao!.getString('initialPage');
@@ -117,6 +120,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setStartOfWeek(int day) {
+    if (_startOfWeek == day) return;
+    _startOfWeek = day;
+    _dao?.setInt('startOfWeek', day);
+    notifyListeners();
+  }
+
   void setSyncServerAddress(String address) {
     if (_syncServerAddress == address) return;
     _syncServerAddress = address;
@@ -134,6 +144,7 @@ class SettingsController extends ChangeNotifier {
     _autoStartWork = false;
     _initialPage = InitialPage.todos;
     _userMode = UserMode.standard;
+    _startOfWeek = DateTime.monday;
     _syncServerAddress = '';
     notifyListeners();
   }

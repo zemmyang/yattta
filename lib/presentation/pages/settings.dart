@@ -89,6 +89,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 16),
+                      FSelect<int>(
+                        label: const Text('Start of Week'),
+                        description: const Text('Select the first day of the week'),
+                        hint: 'Select day',
+                        items: const {
+                          'Monday': DateTime.monday,
+                          'Tuesday': DateTime.tuesday,
+                          'Wednesday': DateTime.wednesday,
+                          'Thursday': DateTime.thursday,
+                          'Friday': DateTime.friday,
+                          'Saturday': DateTime.saturday,
+                          'Sunday': DateTime.sunday,
+                        },
+                        control: FSelectControl.lifted(
+                          value: settingsController.startOfWeek,
+                          onChange: (value) {
+                            if (value != null) {
+                              settingsController.setStartOfWeek(value);
+                            }
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 ),

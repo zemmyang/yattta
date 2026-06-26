@@ -135,7 +135,8 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
                       children: [
                         Expanded(
                           child: Text(
-                            '${reminder.remindAt.year}-${reminder.remindAt.month}-${reminder.remindAt.day} ${reminder.remindAt.hour}:${reminder.remindAt.minute.toString().padLeft(2, '0')} (${reminder.recurrenceRule.frequency})',
+                            reminder.recurrenceRule.toString(),
+                            style: FTheme.of(context).typography.sm,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

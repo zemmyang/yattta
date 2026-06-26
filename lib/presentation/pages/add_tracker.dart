@@ -7,6 +7,7 @@ import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
+import 'package:yattta/presentation/pages/reminder_dialogs.dart';
 
 class AddTrackerPage extends ConsumerStatefulWidget {
   const AddTrackerPage({super.key});
@@ -21,12 +22,22 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
   TrackerValueType _valueType = TrackerValueType.integer;
   TrackerDirection _direction = TrackerDirection.increasing;
   final _selectedTagIds = <String>{};
+  final List<ReminderData> _reminders = [];
 
   @override
   void dispose() {
     _titleController.dispose();
     _unitController.dispose();
     super.dispose();
+  }
+
+  void _addReminder() async {
+    final reminderData = await showAddReminderDialog(context);
+    if (reminderData != null && mounted) {
+      setState(() {
+        _reminders.add(reminderData);
+      });
+    }
   }
 
   void _saveTracker() async {
@@ -38,6 +49,7 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
     final trackerId = const Uuid().v4();
     final trackersDao = ref.read(trackersDaoProvider);
     final tagsDao = ref.read(tagsDaoProvider);
+    final remindersDao = ref.read(remindersDaoProvider);
 
     await trackersDao.upsert(TrackersCompanion(
       id: drift.Value(trackerId),
@@ -51,6 +63,20 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
 
     for (final tagId in _selectedTagIds) {
       await tagsDao.attachToTracker(trackerId, tagId);
+    }
+
+    for (final reminderData in _reminders) {
+      await remindersDao.upsert(RemindersCompanion(
+        id: drift.Value(const Uuid().v4()),
+        trackerId: drift.Value(trackerId),
+        title: drift.Value(title),
+        remindAt: drift.Value(reminderData.remindAt),
+        recurrenceRule: drift.Value(reminderData.recurrenceRule),
+        createdAt: drift.Value(DateTime.now()),
+        updatedAt: drift.Value(DateTime.now()),
+        isSent: const drift.Value(false),
+        isActive: const drift.Value(true),
+      ));
     }
 
     if (mounted) {
@@ -129,6 +155,56 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Reminders',
+                  style: FTheme.of(context).typography.sm.copyWith(fontWeight: FontWeight.bold),
+                ),
+                FButton.icon(
+                  variant: FButtonVariant.ghost,
+                  size: FButtonSizeVariant.sm,
+                  onPress: _addReminder,
+                  child: const Icon(FLucideIcons.plus),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_reminders.isEmpty)
+              Text(
+                'No reminders set',
+                style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+              )
+            else
+              Column(
+                children: _reminders.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final reminder = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reminder.recurrenceRule.toString(),
+                            style: FTheme.of(context).typography.sm,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        FButton.icon(
+                          variant: FButtonVariant.ghost,
+                          size: FButtonSizeVariant.sm,
+                          onPress: () => setState(() => _reminders.removeAt(index)),
+                          child: const Icon(FLucideIcons.trash),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
