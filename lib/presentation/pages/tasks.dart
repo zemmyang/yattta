@@ -131,7 +131,7 @@ class TasksPage extends ConsumerWidget {
         : (task.notes != null ? Text(task.notes!) : null),
       prefix: FCheckbox(
         value: isDone,
-        onChange: (value) => _toggleTaskDone(ref, task, log, value ?? false),
+        onChange: (value) => _toggleTaskDone(ref, task, log, value),
       ),
       suffix: Row(
         mainAxisSize: MainAxisSize.min,

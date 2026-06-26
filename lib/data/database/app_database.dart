@@ -1,6 +1,7 @@
 // app_database.dart
 import 'dart:io';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'connection/connection.dart';
@@ -85,6 +86,8 @@ Future<void> deleteDatabaseFile() async {
       await file.delete();
     }
   } catch (e) {
-    print('Error deleting database: $e');
+    if (kDebugMode) {
+      print('Error deleting database: $e');
+    }
   }
 }

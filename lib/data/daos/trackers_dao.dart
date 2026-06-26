@@ -25,6 +25,13 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
         ..orderBy([(l) => OrderingTerm.desc(l.loggedAt)]))
           .get();
 
+  // Watch logs for a tracker
+  Stream<List<TrackerLog>> watchLogsForTracker(String trackerId) =>
+      (select(trackerLogs)
+        ..where((l) => l.trackerId.equals(trackerId))
+        ..orderBy([(l) => OrderingTerm.asc(l.loggedAt)]))
+          .watch();
+
   // Watch logs within a date range (useful for charting)
   Stream<List<TrackerLog>> watchLogsInRange(
       String trackerId,
@@ -44,6 +51,10 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> addLog(TrackerLogsCompanion entry) =>
       into(trackerLogs).insert(entry);
+
+  Future<void> updateLog(TrackerLogsCompanion entry) =>
+      (update(trackerLogs)..where((l) => l.id.equals(entry.id.value)))
+          .write(entry.copyWith(updatedAt: Value(DateTime.now())));
 
   Future<void> deleteLog(String logId) =>
       (delete(trackerLogs)..where((l) => l.id.equals(logId))).go();
