@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
+import 'package:yattta/data/daos/trackers_dao.dart';
 import 'add_tracker.dart';
 import 'tracker_details.dart';
 
@@ -16,7 +17,7 @@ class TrackersPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trackersAsync = ref.watch(trackersDaoProvider).watchAll();
+    final trackersAsync = ref.watch(trackersProvider);
 
     return FScaffold(
       header: FHeader.nested(
@@ -31,19 +32,8 @@ class TrackersPage extends ConsumerWidget {
       ),
       child: Stack(
         children: [
-          StreamBuilder<List<Tracker>>(
-            stream: trackersAsync,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final trackers = snapshot.data ?? [];
-
+          trackersAsync.when(
+            data: (trackers) {
               if (trackers.isEmpty) {
                 return const Center(
                   child: Text('No trackers yet. Add one!'),
@@ -56,10 +46,12 @@ class TrackersPage extends ConsumerWidget {
                 separatorBuilder: (context, index) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final tracker = trackers[index];
-                  return TrackerTile(tracker: tracker);
+                  return TrackerTile(item: tracker);
                 },
               );
             },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
           ),
           Positioned(
             bottom: 16,
@@ -78,9 +70,9 @@ class TrackersPage extends ConsumerWidget {
 }
 
 class TrackerTile extends ConsumerStatefulWidget {
-  final Tracker tracker;
+  final TrackerWithTags item;
 
-  const TrackerTile({super.key, required this.tracker});
+  const TrackerTile({super.key, required this.item});
 
   @override
   ConsumerState<TrackerTile> createState() => _TrackerTileState();
@@ -105,7 +97,7 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
     final trackersDao = ref.read(trackersDaoProvider);
     await trackersDao.addLog(TrackerLogsCompanion(
       id: drift.Value(const Uuid().v4()),
-      trackerId: drift.Value(widget.tracker.id),
+      trackerId: drift.Value(widget.item.tracker.id),
       value: drift.Value(value),
       loggedAt: drift.Value(DateTime.now()),
       createdAt: drift.Value(DateTime.now()),
@@ -117,22 +109,42 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
       FocusScope.of(context).unfocus();
       showFToast(
         context: context,
-        title: Text('Logged ${widget.tracker.title}'),
-        description: Text('Value: $value ${widget.tracker.unit ?? ''}'),
+        title: Text('Logged ${widget.item.tracker.title}'),
+        description: Text('Value: $value ${widget.item.tracker.unit ?? ''}'),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isInteger = widget.tracker.valueType == TrackerValueType.integer;
-    
+    final isInteger = widget.item.tracker.valueType == TrackerValueType.integer;
+
     return FTile(
-      title: Text(widget.tracker.title),
-      subtitle: widget.tracker.unit != null ? Text('Unit: ${widget.tracker.unit}') : null,
+      title: Text(widget.item.tracker.title),
+      subtitle: widget.item.tags.isEmpty && widget.item.tracker.unit == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.item.tracker.unit != null) Text('Unit: ${widget.item.tracker.unit}'),
+                if (widget.item.tags.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: widget.item.tags
+                        .map((tag) => FBadge(
+                              variant: FBadgeVariant.secondary,
+                              child: Text(tag.name),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
       onPress: () => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => TrackerDetailsPage(tracker: widget.tracker),
+          builder: (context) => TrackerDetailsPage(tracker: widget.item.tracker),
         ),
       ),
       suffix: Row(
@@ -142,9 +154,7 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
             width: 80,
             child: FTextField(
               hint: isInteger ? '0' : '0.0',
-              keyboardType: isInteger 
-                ? TextInputType.number 
-                : const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: isInteger ? TextInputType.number : const TextInputType.numberWithOptions(decimal: true),
               control: FTextFieldControl.managed(controller: _valueController),
             ),
           ),

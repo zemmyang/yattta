@@ -7,6 +7,13 @@ import '../tables/junction_tables.dart';
 
 part 'trackers_dao.g.dart';
 
+class TrackerWithTags {
+  final Tracker tracker;
+  final List<Tag> tags;
+
+  TrackerWithTags({required this.tracker, required this.tags});
+}
+
 @DriftAccessor(tables: [Trackers, TrackerLogs, TrackerTags, Tags])
 class TrackersDao extends DatabaseAccessor<AppDatabase>
     with _$TrackersDaoMixin {
@@ -17,6 +24,22 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
     ..where((t) => t.deletedAt.isNull())
     ..orderBy([(t) => OrderingTerm.asc(t.title)]))
       .watch();
+
+  Stream<List<TrackerWithTags>> watchAllWithTags() {
+    final trackersStream = watchAll();
+    return trackersStream.asyncMap((trackerList) async {
+      final List<TrackerWithTags> results = [];
+      for (final tracker in trackerList) {
+        final tags = await (select(db.tags).join([
+          innerJoin(db.trackerTags, db.trackerTags.tagId.equalsExp(db.tags.id)),
+        ])..where(db.trackerTags.trackerId.equals(tracker.id)))
+            .map((row) => row.readTable(db.tags))
+            .get();
+        results.add(TrackerWithTags(tracker: tracker, tags: tags));
+      }
+      return results;
+    });
+  }
 
   // Get logs for a tracker, most recent first
   Future<List<TrackerLog>> getLogsForTracker(String trackerId) =>

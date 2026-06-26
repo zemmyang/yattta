@@ -25,6 +25,9 @@ class Todos extends Table with AuditColumns {
 
   TextColumn get templateId => text().nullable()();
 
+  IntColumn get workDuration => integer().nullable()();
+  IntColumn get breakDuration => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

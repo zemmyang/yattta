@@ -37,3 +37,11 @@ final todayLogsProvider = StreamProvider((ref) {
 final activeRemindersProvider = StreamProvider((ref) {
   return ref.watch(remindersDaoProvider).watchAllActive();
 });
+
+final trackersProvider = StreamProvider((ref) {
+  return ref.watch(trackersDaoProvider).watchAllWithTags();
+});
+
+final todosProvider = StreamProvider((ref) {
+  return ref.watch(todosDaoProvider).watchAllWithTags();
+});

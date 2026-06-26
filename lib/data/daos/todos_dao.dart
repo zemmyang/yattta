@@ -7,6 +7,13 @@ import '../tables/junction_tables.dart';
 
 part 'todos_dao.g.dart';
 
+class TodoWithTags {
+  final Todo todo;
+  final List<Tag> tags;
+
+  TodoWithTags({required this.todo, required this.tags});
+}
+
 @DriftAccessor(tables: [Todos, TodoTags, Tags])
 class TodosDao extends DatabaseAccessor<AppDatabase>
     with _$TodosDaoMixin {
@@ -17,6 +24,22 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
     ..where((t) => t.deletedAt.isNull())
     ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
       .watch();
+
+  Stream<List<TodoWithTags>> watchAllWithTags() {
+    final todoStream = watchAll();
+    return todoStream.asyncMap((todoList) async {
+      final List<TodoWithTags> results = [];
+      for (final todo in todoList) {
+        final tags = await (select(db.tags).join([
+          innerJoin(db.todoTags, db.todoTags.tagId.equalsExp(db.tags.id)),
+        ])..where(db.todoTags.todoId.equals(todo.id)))
+            .map((row) => row.readTable(db.tags))
+            .get();
+        results.add(TodoWithTags(todo: todo, tags: tags));
+      }
+      return results;
+    });
+  }
 
   // Fetch subtasks for a given parent
   Future<List<Todo>> getSubtasks(String parentId) =>

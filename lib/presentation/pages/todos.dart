@@ -1,17 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:uuid/uuid.dart';
+import 'package:yattta/data/database/app_database.dart';
+import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/utils/notification_service.dart';
 import 'package:yattta/utils/settings_controller.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:yattta/data/converters/enum_converters.dart';
+import 'package:yattta/presentation/pages/tag_dialogs.dart';
+import 'package:yattta/presentation/pages/add_todo.dart';
 
-class TodosPage extends StatelessWidget {
+class TodosPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
 
   const TodosPage({super.key, this.onMenuPressed});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Todos'),
@@ -23,33 +31,48 @@ class TodosPage extends StatelessWidget {
             ),
         ],
       ),
-      child: const Main(),
+      child: Stack(
+        children: [
+          const Main(),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FButton.icon(
+              onPress: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AddTodoPage()),
+              ),
+              child: const Icon(FLucideIcons.plus),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 enum TimerMode { work, shortBreak, longBreak }
 
-class Main extends StatefulWidget {
+class Main extends ConsumerStatefulWidget {
   const Main({super.key});
 
   @override
-  State<Main> createState() => _MainState();
+  ConsumerState<Main> createState() => _MainState();
 }
 
-class _MainState extends State<Main> {
+class _MainState extends ConsumerState<Main> {
   late int _timeLeft; // in seconds
   Timer? _timer;
   bool _isPaused = false;
   TimerMode _timerMode = TimerMode.work;
   int _sessionsCompleted = 0;
+  Todo? _focusedTodo;
 
   int get _currentDurationMinutes {
     switch (_timerMode) {
       case TimerMode.work:
-        return settingsController.timerDuration;
+        return _focusedTodo?.workDuration ?? settingsController.timerDuration;
       case TimerMode.shortBreak:
-        return settingsController.breakDuration;
+        return _focusedTodo?.breakDuration ?? settingsController.breakDuration;
       case TimerMode.longBreak:
         return settingsController.longBreakDuration;
     }
@@ -167,90 +190,235 @@ class _MainState extends State<Main> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final size = (constraints.maxWidth < constraints.maxHeight
-                  ? constraints.maxWidth * 0.8
-                  : constraints.maxHeight * 0.8)
-              .clamp(0.0, 400.0);
-          return SingleChildScrollView(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+  Widget build(BuildContext context) {
+    final todosAsync = ref.watch(todosProvider);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = (constraints.maxWidth < constraints.maxHeight
+                ? constraints.maxWidth * 0.8
+                : constraints.maxHeight * 0.8)
+            .clamp(0.0, 400.0);
+        return SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                    const SizedBox(height: 60),
+                    Text(
+                      _getModeLabel(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: size * 0.1,
+                        color: _getTimerColor(context),
+                      ),
+                    ),
+                    if (_timerMode == TimerMode.work) ...[
+                      const SizedBox(height: 8),
                       Text(
-                        _getModeLabel(),
+                        'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: size * 0.1,
-                          color: _getTimerColor(context),
+                          fontSize: size * 0.05,
+                          color: FTheme.of(context).colors.mutedForeground,
                         ),
                       ),
-                      if (_timerMode == TimerMode.work) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
-                          style: TextStyle(
-                            fontSize: size * 0.05,
-                            color: FTheme.of(context).colors.mutedForeground,
+                    ],
+                    const SizedBox(height: 20),
+                    if (_focusedTodo != null) ...[
+                      Text(
+                        _focusedTodo!.title,
+                        style: FTheme.of(context).typography.lg.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    SizedBox(
+                      width: size,
+                      height: size,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox.expand(
+                            child: CircularProgressIndicator(
+                              value: _timeLeft / (_currentDurationMinutes * 60),
+                              strokeWidth: size * 0.05,
+                              backgroundColor: FTheme.of(context).colors.border,
+                              valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
+                            ),
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: size,
-                        height: size,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox.expand(
-                              child: CircularProgressIndicator(
-                                value: _timeLeft / (_currentDurationMinutes * 60),
-                                strokeWidth: size * 0.05,
-                                backgroundColor: FTheme.of(context).colors.border,
-                                valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
-                              ),
+                          Text(
+                            '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: size * 0.2,
                             ),
-                            Text(
-                              '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: size * 0.2,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 20),
-                      if (_timer == null)
-                        FButton(
+                    ),
+                    const SizedBox(height: 40),
+                    if (_timer == null)
+                      SizedBox(
+                        width: size * 0.9,
+                        child: FButton(
                           onPress: _startTimer,
                           suffix: const Icon(FLucideIcons.play),
                           child: const Text('Start'),
-                        )
-                      else ...[
-                        FButton(
+                        ),
+                      )
+                    else ...[
+                      SizedBox(
+                        width: size * 0.9,
+                        child: FButton(
                           onPress: _togglePause,
                           suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
                           child: Text(_isPaused ? 'Resume' : 'Pause'),
                         ),
-                        const SizedBox(height: 10),
-                        FButton(
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: size * 0.9,
+                        child: FButton(
                           variant: FButtonVariant.outline,
                           onPress: _finishSession,
                           suffix: const Icon(FLucideIcons.squareStop),
                           child: const Text('Stop'),
                         ),
-                      ],
+                      ),
                     ],
-                  ),
+                    const SizedBox(height: 40),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: todosAsync.when(
+                        data: (todos) {
+                          final pendingTodos = todos.where((t) => t.todo.status != TodoStatus.done).toList();
+                          final doneTodos = todos.where((t) => t.todo.status == TodoStatus.done).toList();
+                          
+                          if (pendingTodos.isEmpty && doneTodos.isEmpty) {
+                            return const SizedBox();
+                          }
+                          
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (pendingTodos.isNotEmpty) ...[
+                                Text(
+                                  'PENDING',
+                                  style: FTheme.of(context).typography.sm.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: FTheme.of(context).colors.mutedForeground,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                FTileGroup(
+                                  children: pendingTodos.map((item) {
+                                    final isFocused = _focusedTodo?.id == item.todo.id;
+                                    return FTile(
+                                      selected: isFocused,
+                                      onPress: () => setState(() => _focusedTodo = item.todo),
+                                      title: Text(item.todo.title),
+                                      subtitle: item.tags.isEmpty
+                                          ? null
+                                          : Padding(
+                                              padding: const EdgeInsets.only(top: 4),
+                                              child: Wrap(
+                                                spacing: 4,
+                                                runSpacing: 4,
+                                                children: item.tags
+                                                    .map((tag) => FBadge(
+                                                          variant: FBadgeVariant.secondary,
+                                                          child: Text(tag.name),
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                            ),
+                                      prefix: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () => _toggleTodoStatus(item.todo, true),
+                                        child: FCheckbox(
+                                          value: false,
+                                          onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(height: 24),
+                              ],
+                              if (doneTodos.isNotEmpty) ...[
+                                Text(
+                                  'DONE',
+                                  style: FTheme.of(context).typography.sm.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: FTheme.of(context).colors.mutedForeground,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                FTileGroup(
+                                  children: doneTodos.map((item) {
+                                    final isFocused = _focusedTodo?.id == item.todo.id;
+                                    return FTile(
+                                      selected: isFocused,
+                                      onPress: () => setState(() => _focusedTodo = item.todo),
+                                      title: Text(
+                                        item.todo.title,
+                                        style: const TextStyle(
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                      subtitle: item.tags.isEmpty
+                                          ? null
+                                          : Padding(
+                                              padding: const EdgeInsets.only(top: 4),
+                                              child: Wrap(
+                                                spacing: 4,
+                                                runSpacing: 4,
+                                                children: item.tags
+                                                    .map((tag) => FBadge(
+                                                          variant: FBadgeVariant.outline,
+                                                          child: Text(tag.name),
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                            ),
+                                      prefix: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () => _toggleTodoStatus(item.todo, false),
+                                        child: FCheckbox(
+                                          value: true,
+                                          onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (err, stack) => Text('Error: $err'),
+                      ),
+                    ),
+                    const SizedBox(height: 80), // Bottom padding for FAB
+                  ],
                 ),
               ),
             ),
           );
         },
-      );
+    );
+  }
+
+  void _toggleTodoStatus(Todo todo, bool value) async {
+    final todosDao = ref.read(todosDaoProvider);
+    await todosDao.upsert(todo.toCompanion(true).copyWith(
+          status: drift.Value(value ? TodoStatus.done : TodoStatus.pending),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+  }
 }
