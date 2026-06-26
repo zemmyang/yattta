@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
+import 'package:yattta/presentation/pages/tags.dart';
 import 'package:yattta/presentation/pages/settings.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
@@ -29,6 +30,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
       icon: FLucideIcons.activity,
       label: 'Trackers',
       builder: (context) => TrackersPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          ),
+      visible: settingsController.userMode != UserMode.focused,
+    ),
+    (
+      icon: FLucideIcons.tag,
+      label: 'Tags',
+      builder: (context) => TagsPage(
             onMenuPressed: () => showAppSidebar(context, themeController),
           ),
       visible: settingsController.userMode != UserMode.focused,

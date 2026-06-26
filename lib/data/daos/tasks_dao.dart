@@ -7,6 +7,13 @@ import '../tables/junction_tables.dart';
 
 part 'tasks_dao.g.dart';
 
+class TaskWithTags {
+  final Task task;
+  final List<Tag> tags;
+
+  TaskWithTags({required this.task, required this.tags});
+}
+
 @DriftAccessor(tables: [Tasks, TaskLogs, TaskTags, Tags])
 class TasksDao extends DatabaseAccessor<AppDatabase>
     with _$TasksDaoMixin {
@@ -17,6 +24,26 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
     ..where((t) => t.deletedAt.isNull() & t.isActive.equals(true))
     ..orderBy([(t) => OrderingTerm.asc(t.nextDueAt)]))
       .watch();
+
+  Stream<List<TaskWithTags>> watchAllWithTags() {
+    final tasksStream = (select(tasks)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([(t) => OrderingTerm.asc(t.title)]))
+        .watch();
+        
+    return tasksStream.asyncMap((taskList) async {
+      final List<TaskWithTags> results = [];
+      for (final task in taskList) {
+        final tags = await (select(db.tags).join([
+          innerJoin(db.taskTags, db.taskTags.tagId.equalsExp(db.tags.id)),
+        ])..where(db.taskTags.taskId.equals(task.id)))
+            .map((row) => row.readTable(db.tags))
+            .get();
+        results.add(TaskWithTags(task: task, tags: tags));
+      }
+      return results;
+    });
+  }
 
   // Get all logs for a task, most recent first
   Future<List<TaskLog>> getLogsForTask(String taskId) =>
