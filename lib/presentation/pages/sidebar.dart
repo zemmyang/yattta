@@ -5,6 +5,7 @@ import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/presentation/pages/settings.dart';
 import 'package:yattta/utils/theme_controller.dart';
+import 'package:yattta/utils/settings_controller.dart';
 
 void showAppSidebar(BuildContext context, ThemeController themeController) {
   final items = [
@@ -13,26 +14,30 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
       label: 'Todos',
       builder: (context) => TodosPage(
             onMenuPressed: () => showAppSidebar(context, themeController),
-          )
+          ),
+      visible: true,
     ),
     (
       icon: FLucideIcons.clipboardList,
       label: 'Tasks',
       builder: (context) => TasksPage(
             onMenuPressed: () => showAppSidebar(context, themeController),
-          )
+          ),
+      visible: settingsController.userMode != UserMode.focused,
     ),
     (
       icon: FLucideIcons.activity,
       label: 'Trackers',
       builder: (context) => TrackersPage(
             onMenuPressed: () => showAppSidebar(context, themeController),
-          )
+          ),
+      visible: settingsController.userMode != UserMode.focused,
     ),
     (
       icon: FLucideIcons.settings,
       label: 'Settings',
-      builder: (context) => SettingsPage(themeController: themeController)
+      builder: (context) => SettingsPage(themeController: themeController),
+      visible: true,
     ),
   ];
 
@@ -47,6 +52,7 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
         ],
       ),
       children: items
+          .where((item) => item.visible)
           .map(
             (item) => Padding(
               padding: const EdgeInsets.all(8.0),

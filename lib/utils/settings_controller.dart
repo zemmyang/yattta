@@ -6,6 +6,8 @@ final settingsController = SettingsController();
 
 enum InitialPage { todos, tasks, trackers }
 
+enum UserMode { focused, standard, powerUser }
+
 class SettingsController extends ChangeNotifier {
   SettingsDao? _dao;
 
@@ -16,6 +18,7 @@ class SettingsController extends ChangeNotifier {
   bool _autoStartBreaks = false;
   bool _autoStartWork = false;
   InitialPage _initialPage = InitialPage.todos;
+  UserMode _userMode = UserMode.standard;
   String _syncServerAddress = '';
 
   int get timerDuration => _timerDuration;
@@ -25,6 +28,7 @@ class SettingsController extends ChangeNotifier {
   bool get autoStartBreaks => _autoStartBreaks;
   bool get autoStartWork => _autoStartWork;
   InitialPage get initialPage => _initialPage;
+  UserMode get userMode => _userMode;
   String get syncServerAddress => _syncServerAddress;
 
   Future<void> initialize(AppDatabase db) async {
@@ -43,6 +47,14 @@ class SettingsController extends ChangeNotifier {
       _initialPage = InitialPage.values.firstWhere(
         (e) => e.name == initialPageStr,
         orElse: () => InitialPage.todos,
+      );
+    }
+
+    final userModeStr = await _dao!.getString('userMode');
+    if (userModeStr != null) {
+      _userMode = UserMode.values.firstWhere(
+        (e) => e.name == userModeStr,
+        orElse: () => UserMode.standard,
       );
     }
 
@@ -98,6 +110,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setUserMode(UserMode mode) {
+    if (_userMode == mode) return;
+    _userMode = mode;
+    _dao?.setString('userMode', mode.name);
+    notifyListeners();
+  }
+
   void setSyncServerAddress(String address) {
     if (_syncServerAddress == address) return;
     _syncServerAddress = address;
@@ -114,6 +133,7 @@ class SettingsController extends ChangeNotifier {
     _autoStartBreaks = false;
     _autoStartWork = false;
     _initialPage = InitialPage.todos;
+    _userMode = UserMode.standard;
     _syncServerAddress = '';
     notifyListeners();
   }

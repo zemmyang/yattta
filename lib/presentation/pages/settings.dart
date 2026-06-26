@@ -48,23 +48,48 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: const Text('General'),
                 child: ListenableBuilder(
                   listenable: settingsController,
-                  builder: (context, _) => FSelect<InitialPage>(
-                    label: const Text('Initial Page'),
-                    description: const Text('Select the page to show when opening the app'),
-                    hint: 'Select page',
-                    items: const {
-                      'Todos': InitialPage.todos,
-                      'Tasks': InitialPage.tasks,
-                      'Trackers': InitialPage.trackers,
-                    },
-                    control: FSelectControl.lifted(
-                      value: settingsController.initialPage,
-                      onChange: (value) {
-                        if (value != null) {
-                          settingsController.setInitialPage(value);
-                        }
-                      },
-                    ),
+                  builder: (context, _) => Column(
+                    children: [
+                      FSelect<UserMode>(
+                        label: const Text('User Mode'),
+                        description: const Text('Select the interface complexity'),
+                        hint: 'Select mode',
+                        items: const {
+                          'Focused': UserMode.focused,
+                          'Standard': UserMode.standard,
+                          'Power User': UserMode.powerUser,
+                        },
+                        control: FSelectControl.lifted(
+                          value: settingsController.userMode,
+                          onChange: (value) {
+                            if (value != null) {
+                              settingsController.setUserMode(value);
+                            }
+                          },
+                        ),
+                      ),
+                      if (settingsController.userMode != UserMode.focused) ...[
+                        const SizedBox(height: 16),
+                        FSelect<InitialPage>(
+                          label: const Text('Initial Page'),
+                          description: const Text('Select the page to show when opening the app'),
+                          hint: 'Select page',
+                          items: const {
+                            'Todos': InitialPage.todos,
+                            'Tasks': InitialPage.tasks,
+                            'Trackers': InitialPage.trackers,
+                          },
+                          control: FSelectControl.lifted(
+                            value: settingsController.initialPage,
+                            onChange: (value) {
+                              if (value != null) {
+                                settingsController.setInitialPage(value);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
