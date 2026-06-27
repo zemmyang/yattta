@@ -11,7 +11,16 @@ import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/reminder_dialogs.dart';
 
 class AddTaskPage extends ConsumerStatefulWidget {
-  const AddTaskPage({super.key});
+  final Task? task;
+  final List<Reminder>? initialReminders;
+  final List<Tag>? initialTags;
+
+  const AddTaskPage({
+    super.key,
+    this.task,
+    this.initialReminders,
+    this.initialTags,
+  });
 
   @override
   ConsumerState<AddTaskPage> createState() => _AddTaskPageState();
@@ -21,6 +30,23 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
   final _titleController = TextEditingController();
   final List<ReminderData> _reminders = [];
   final Set<String> _selectedTagIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.task != null) {
+      _titleController.text = widget.task!.title;
+      if (widget.initialReminders != null) {
+        _reminders.addAll(widget.initialReminders!.map((r) => ReminderData(
+          remindAt: r.remindAt,
+          recurrenceRule: r.recurrenceRule ?? const RecurrenceRule(frequency: 'none'),
+        )));
+      }
+      if (widget.initialTags != null) {
+        _selectedTagIds.addAll(widget.initialTags!.map((t) => t.id));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -44,7 +70,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
       return;
     }
 
-    final taskId = const Uuid().v4();
+    final taskId = widget.task?.id ?? const Uuid().v4();
     final tasksDao = ref.read(tasksDaoProvider);
     final remindersDao = ref.read(remindersDaoProvider);
     final tagsDao = ref.read(tagsDaoProvider);
@@ -52,11 +78,17 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
     await tasksDao.upsert(TasksCompanion(
       id: drift.Value(taskId),
       title: drift.Value(title),
-      isActive: const drift.Value(true),
-      createdAt: drift.Value(DateTime.now()),
+      isActive: drift.Value(widget.task?.isActive ?? true),
+      createdAt: drift.Value(widget.task?.createdAt ?? DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
-      recurrenceRule: const drift.Value(RecurrenceRule(frequency: 'none')),
+      recurrenceRule: drift.Value(widget.task?.recurrenceRule ?? const RecurrenceRule(frequency: 'none')),
     ));
+
+    // Clear old data for update
+    if (widget.task != null) {
+      await remindersDao.deleteAllForTask(taskId);
+      await tagsDao.detachAllFromTask(taskId);
+    }
 
     for (final reminderData in _reminders) {
       await remindersDao.upsert(RemindersCompanion(
@@ -81,15 +113,58 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
     }
   }
 
+  void _deleteTask() async {
+    if (widget.task == null) return;
+    
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Delete Task'),
+        body: const Text('Are you sure you want to delete this task? This will also delete all its reminders.'),
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(false),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            variant: FButtonVariant.destructive,
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final tasksDao = ref.read(tasksDaoProvider);
+      final remindersDao = ref.read(remindersDaoProvider);
+      
+      await remindersDao.deleteAllForTask(widget.task!.id);
+      await tasksDao.softDelete(widget.task!.id);
+      
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tagsStream = ref.watch(tagsDaoProvider).watchAll();
 
     return FScaffold(
       header: FHeader.nested(
-        title: const Text('Add Task'),
+        title: Text(widget.task == null ? 'Add Task' : 'Edit Task'),
         prefixes: [
           FHeaderAction.x(onPress: () => Navigator.of(context).pop()),
+        ],
+        suffixes: [
+          if (widget.task != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.trash),
+              onPress: _deleteTask,
+            ),
         ],
       ),
       child: SingleChildScrollView(
@@ -207,7 +282,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               width: double.infinity,
               child: FButton(
                 onPress: _saveTask,
-                child: const Text('Save Task'),
+                child: Text(widget.task == null ? 'Save Task' : 'Update Task'),
               ),
             ),
           ],

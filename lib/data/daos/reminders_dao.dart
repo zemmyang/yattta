@@ -69,6 +69,9 @@ class RemindersDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<void> deleteAllForTask(String taskId) =>
+      (delete(reminders)..where((r) => r.taskId.equals(taskId))).go();
+
   Future<void> softDelete(String id) =>
       (update(reminders)..where((r) => r.id.equals(id)))
           .write(RemindersCompanion(deletedAt: Value(DateTime.now())));

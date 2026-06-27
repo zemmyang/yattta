@@ -150,6 +150,12 @@ class TasksPage extends ConsumerWidget {
           const SizedBox(width: 4),
           FButton.icon(
             variant: FButtonVariant.ghost,
+            onPress: () => _editTask(context, ref, task),
+            child: const Icon(FLucideIcons.pencil),
+          ),
+          const SizedBox(width: 4),
+          FButton.icon(
+            variant: FButtonVariant.ghost,
             onPress: () => _showNotesDialog(context, ref, task, log),
             child: Icon(
               FLucideIcons.notebookPen,
@@ -159,6 +165,26 @@ class TasksPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _editTask(BuildContext context, WidgetRef ref, Task task) async {
+    final remindersDao = ref.read(remindersDaoProvider);
+    final tagsDao = ref.read(tagsDaoProvider);
+
+    final reminders = await remindersDao.getForTask(task.id);
+    final tags = await tagsDao.getTagsForTask(task.id);
+
+    if (context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AddTaskPage(
+            task: task,
+            initialReminders: reminders,
+            initialTags: tags,
+          ),
+        ),
+      );
+    }
   }
 
   void _toggleTaskDone(WidgetRef ref, Task task, TaskLog? log, bool value) async {
