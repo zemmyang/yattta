@@ -5,6 +5,7 @@ import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/presentation/pages/tags.dart';
 import 'package:yattta/presentation/pages/settings.dart';
+import 'package:yattta/presentation/pages/statistics.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 
@@ -41,6 +42,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
             onMenuPressed: () => showAppSidebar(context, themeController),
           ),
       visible: settingsController.userMode != UserMode.focused,
+    ),
+    (
+      icon: FLucideIcons.chartColumn,
+      label: 'Statistics',
+      builder: (context) => StatisticsPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          ),
+      visible: settingsController.userMode == UserMode.powerUser,
     ),
     (
       icon: FLucideIcons.settings,

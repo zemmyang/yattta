@@ -206,7 +206,7 @@ class _MainState extends ConsumerState<Main> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 20),
                     Text(
                       _getModeLabel(),
                       style: TextStyle(
