@@ -19,10 +19,10 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
     with _$TodosDaoMixin {
   TodosDao(super.db);
 
-  // Fetch all non-deleted todos, newest first
+  // Fetch all non-deleted todos, ordered by position
   Stream<List<Todo>> watchAll() => (select(todos)
     ..where((t) => t.deletedAt.isNull())
-    ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+    ..orderBy([(t) => OrderingTerm.asc(t.position), (t) => OrderingTerm.desc(t.createdAt)]))
       .watch();
 
   // Fetch all deleted todos
@@ -72,4 +72,13 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   // Hard delete
   Future<void> hardDelete(String id) =>
       (delete(todos)..where((t) => t.id.equals(id))).go();
+
+  Future<void> updatePositions(List<String> ids) async {
+    await batch((batch) {
+      for (int i = 0; i < ids.length; i++) {
+        batch.update(todos, TodosCompanion(position: Value(i)),
+            where: (t) => t.id.equals(ids[i]));
+      }
+    });
+  }
 }

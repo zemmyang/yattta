@@ -41,13 +41,27 @@ class TrackersPage extends ConsumerWidget {
                 );
               }
 
-              return ListView.separated(
+              return ReorderableListView.builder(
+                buildDefaultDragHandles: false,
                 padding: const EdgeInsets.all(16),
                 itemCount: trackers.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                onReorder: (oldIndex, newIndex) {
+                  if (oldIndex < newIndex) {
+                    newIndex -= 1;
+                  }
+                  final item = trackers.removeAt(oldIndex);
+                  trackers.insert(newIndex, item);
+                  ref.read(trackersDaoProvider).updatePositions(
+                        trackers.map((t) => t.tracker.id).toList(),
+                      );
+                },
                 itemBuilder: (context, index) {
                   final tracker = trackers[index];
-                  return TrackerTile(item: tracker);
+                  return TrackerTile(
+                    key: ValueKey(tracker.tracker.id),
+                    item: tracker,
+                    index: index,
+                  );
                 },
               );
             },
@@ -72,8 +86,9 @@ class TrackersPage extends ConsumerWidget {
 
 class TrackerTile extends ConsumerStatefulWidget {
   final TrackerWithTags item;
+  final int index;
 
-  const TrackerTile({super.key, required this.item});
+  const TrackerTile({super.key, required this.item, required this.index});
 
   @override
   ConsumerState<TrackerTile> createState() => _TrackerTileState();
@@ -140,6 +155,13 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
                 ],
               ],
             ),
+      prefix: ReorderableDragStartListener(
+        index: widget.index,
+        child: const Padding(
+          padding: EdgeInsets.only(right: 8),
+          child: Icon(FLucideIcons.gripVertical, size: 20),
+        ),
+      ),
       onPress: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => TrackerDetailsPage(tracker: widget.item.tracker),

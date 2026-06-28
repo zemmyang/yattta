@@ -22,7 +22,7 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
   // Watch all non-deleted trackers
   Stream<List<Tracker>> watchAll() => (select(trackers)
     ..where((t) => t.deletedAt.isNull())
-    ..orderBy([(t) => OrderingTerm.asc(t.title)]))
+    ..orderBy([(t) => OrderingTerm.asc(t.position), (t) => OrderingTerm.asc(t.title)]))
       .watch();
 
   // Watch all deleted trackers
@@ -98,4 +98,13 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> hardDelete(String id) =>
       (delete(trackers)..where((t) => t.id.equals(id))).go();
+
+  Future<void> updatePositions(List<String> ids) async {
+    await batch((batch) {
+      for (int i = 0; i < ids.length; i++) {
+        batch.update(trackers, TrackersCompanion(position: Value(i)),
+            where: (t) => t.id.equals(ids[i]));
+      }
+    });
+  }
 }

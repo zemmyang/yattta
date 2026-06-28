@@ -325,93 +325,154 @@ class _MainState extends ConsumerState<Main> {
                                       ),
                                 ),
                                 const SizedBox(height: 8),
-                                FTileGroup(
-                                  children: pendingTodos.map((item) {
+                                ReorderableListView.builder(
+                                  buildDefaultDragHandles: false,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: pendingTodos.length,
+                                  onReorder: (oldIndex, newIndex) {
+                                    if (oldIndex < newIndex) {
+                                      newIndex -= 1;
+                                    }
+                                    final item = pendingTodos.removeAt(oldIndex);
+                                    pendingTodos.insert(newIndex, item);
+                                    ref.read(todosDaoProvider).updatePositions(
+                                          pendingTodos.map((t) => t.todo.id).toList(),
+                                        );
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final item = pendingTodos[index];
                                     final isFocused = _focusedTodo?.id == item.todo.id;
-                                    return FTile(
-                                      selected: isFocused,
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () => setState(() => _focusedTodo = item.todo),
-                                              child: Text(item.todo.title),
-                                            ),
-                                          ),
-                                          StreamBuilder<int>(
-                                            stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
-                                            builder: (context, snapshot) {
-                                              final count = snapshot.data ?? 0;
-                                              if (count == 0) return const SizedBox();
-                                              return Padding(
-                                                padding: const EdgeInsets.only(left: 8),
-                                                child: FBadge(
-                                                  variant: FBadgeVariant.secondary,
-                                                  child: Text('$count 🍅'),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                              child: Text(
-                                                item.todo.notes!,
-                                                style: FTheme.of(context).typography.sm.copyWith(
-                                                      color: FTheme.of(context).colors.mutedForeground,
-                                                    ),
-                                              ),
-                                            ),
-                                          if (item.tags.isNotEmpty)
-                                            Wrap(
-                                              spacing: 4,
-                                              runSpacing: 4,
-                                              children: item.tags
-                                                  .map((tag) => TagBadge(tag: tag))
-                                              .toList(),
-                                            ),
-                                        ],
-                                      ),
-                                      prefix: GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onTap: () => _toggleTodoStatus(item.todo, true),
-                                        child: FCheckbox(
-                                          value: false,
-                                          onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                    return Container(
+                                      key: ValueKey(item.todo.id),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: index < pendingTodos.length - 1
+                                              ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
+                                              : BorderSide.none,
                                         ),
                                       ),
-                                      suffix: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          FButton.icon(
-                                            variant: FButtonVariant.ghost,
-                                            size: FButtonSizeVariant.sm,
-                                            onPress: () => Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (context) => AddTodoPage(
-                                                  todo: item.todo,
-                                                  initialTags: item.tags,
-                                                ),
+                                      child: FTile(
+                                        selected: isFocused,
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: GestureDetector(
+                                                behavior: HitTestBehavior.opaque,
+                                                onTap: () => setState(() => _focusedTodo = item.todo),
+                                                child: Text(item.todo.title),
                                               ),
                                             ),
-                                            child: const Icon(FLucideIcons.pencil),
-                                          ),
-                                          FButton.icon(
-                                            variant: FButtonVariant.ghost,
-                                            size: FButtonSizeVariant.sm,
-                                            onPress: () => _deleteTodo(context, ref, item.todo),
-                                            child: const Icon(FLucideIcons.trash),
-                                          ),
-                                        ],
+                                            StreamBuilder<int>(
+                                              stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
+                                              builder: (context, snapshot) {
+                                                final count = snapshot.data ?? 0;
+                                                if (count == 0) return const SizedBox();
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(left: 8),
+                                                  child: FBadge(
+                                                    variant: FBadgeVariant.secondary,
+                                                    child: Text('$count 🍅'),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                                child: Text(
+                                                  item.todo.notes!,
+                                                  style: FTheme.of(context).typography.sm.copyWith(
+                                                        color: FTheme.of(context).colors.mutedForeground,
+                                                      ),
+                                                ),
+                                              ),
+                                            if (item.todo.dueAt != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(bottom: 4),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      FLucideIcons.calendar,
+                                                      size: 14,
+                                                      color: item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
+                                                          ? Colors.red
+                                                          : FTheme.of(context).colors.mutedForeground,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
+                                                      style: FTheme.of(context).typography.xs.copyWith(
+                                                            color: item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
+                                                                ? Colors.red
+                                                                : FTheme.of(context).colors.mutedForeground,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (item.tags.isNotEmpty)
+                                              Wrap(
+                                                spacing: 4,
+                                                runSpacing: 4,
+                                                children: item.tags
+                                                    .map((tag) => TagBadge(tag: tag))
+                                                .toList(),
+                                              ),
+                                          ],
+                                        ),
+                                        prefix: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ReorderableDragStartListener(
+                                              index: index,
+                                              child: const Padding(
+                                                padding: EdgeInsets.only(right: 8),
+                                                child: Icon(FLucideIcons.gripVertical, size: 20),
+                                              ),
+                                            ),
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () => _toggleTodoStatus(item.todo, true),
+                                              child: FCheckbox(
+                                                value: false,
+                                                onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        suffix: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
+                                              onPress: () => Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) => AddTodoPage(
+                                                    todo: item.todo,
+                                                    initialTags: item.tags,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: const Icon(FLucideIcons.pencil),
+                                            ),
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
+                                              onPress: () => _deleteTodo(context, ref, item.todo),
+                                              child: const Icon(FLucideIcons.trash),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                                 const SizedBox(height: 24),
                               ],
@@ -424,102 +485,160 @@ class _MainState extends ConsumerState<Main> {
                                       ),
                                 ),
                                 const SizedBox(height: 8),
-                                FTileGroup(
-                                  children: doneTodos.map((item) {
+                                ReorderableListView.builder(
+                                  buildDefaultDragHandles: false,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: doneTodos.length,
+                                  onReorder: (oldIndex, newIndex) {
+                                    if (oldIndex < newIndex) {
+                                      newIndex -= 1;
+                                    }
+                                    final item = doneTodos.removeAt(oldIndex);
+                                    doneTodos.insert(newIndex, item);
+                                    ref.read(todosDaoProvider).updatePositions(
+                                          doneTodos.map((t) => t.todo.id).toList(),
+                                        );
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final item = doneTodos[index];
                                     final isFocused = _focusedTodo?.id == item.todo.id;
-                                    return FTile(
-                                      selected: isFocused,
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () => setState(() => _focusedTodo = item.todo),
-                                              child: Text(
-                                                item.todo.title,
-                                                style: const TextStyle(
-                                                  decoration: TextDecoration.lineThrough,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          StreamBuilder<int>(
-                                            stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
-                                            builder: (context, snapshot) {
-                                              final count = snapshot.data ?? 0;
-                                              if (count == 0) return const SizedBox();
-                                              return Padding(
-                                                padding: const EdgeInsets.only(left: 8),
-                                                child: FBadge(
-                                                  variant: FBadgeVariant.outline,
-                                                  child: Text('$count 🍅'),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                              child: Text(
-                                                item.todo.notes!,
-                                                style: FTheme.of(context).typography.sm.copyWith(
-                                                      color: FTheme.of(context).colors.mutedForeground,
-                                                      decoration: TextDecoration.lineThrough,
-                                                    ),
-                                              ),
-                                            ),
-                                          if (item.tags.isNotEmpty)
-                                            Wrap(
-                                              spacing: 4,
-                                              runSpacing: 4,
-                                              children: item.tags
-                                                  .map((tag) => TagBadge(
-                                                        tag: tag,
-                                                        variant: FBadgeVariant.outline,
-                                                      ))
-                                                  .toList(),
-                                            ),
-                                        ],
-                                      ),
-                                      prefix: GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onTap: () => _toggleTodoStatus(item.todo, false),
-                                        child: FCheckbox(
-                                          value: true,
-                                          onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                    return Container(
+                                      key: ValueKey(item.todo.id),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: index < doneTodos.length - 1
+                                              ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
+                                              : BorderSide.none,
                                         ),
                                       ),
-                                      suffix: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          FButton.icon(
-                                            variant: FButtonVariant.ghost,
-                                            size: FButtonSizeVariant.sm,
-                                            onPress: () => Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (context) => AddTodoPage(
-                                                  todo: item.todo,
-                                                  initialTags: item.tags,
+                                      child: FTile(
+                                        selected: isFocused,
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: GestureDetector(
+                                                behavior: HitTestBehavior.opaque,
+                                                onTap: () => setState(() => _focusedTodo = item.todo),
+                                                child: Text(
+                                                  item.todo.title,
+                                                  style: const TextStyle(
+                                                    decoration: TextDecoration.lineThrough,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                            child: const Icon(FLucideIcons.pencil),
-                                          ),
-                                          FButton.icon(
-                                            variant: FButtonVariant.ghost,
-                                            size: FButtonSizeVariant.sm,
-                                            onPress: () => _deleteTodo(context, ref, item.todo),
-                                            child: const Icon(FLucideIcons.trash),
-                                          ),
-                                        ],
+                                            StreamBuilder<int>(
+                                              stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
+                                              builder: (context, snapshot) {
+                                                final count = snapshot.data ?? 0;
+                                                if (count == 0) return const SizedBox();
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(left: 8),
+                                                  child: FBadge(
+                                                    variant: FBadgeVariant.outline,
+                                                    child: Text('$count 🍅'),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                                child: Text(
+                                                  item.todo.notes!,
+                                                  style: FTheme.of(context).typography.sm.copyWith(
+                                                        color: FTheme.of(context).colors.mutedForeground,
+                                                        decoration: TextDecoration.lineThrough,
+                                                      ),
+                                                ),
+                                              ),
+                                            if (item.todo.dueAt != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(bottom: 4),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      FLucideIcons.calendar,
+                                                      size: 14,
+                                                      color: FTheme.of(context).colors.mutedForeground,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
+                                                      style: FTheme.of(context).typography.xs.copyWith(
+                                                            color: FTheme.of(context).colors.mutedForeground,
+                                                            decoration: TextDecoration.lineThrough,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (item.tags.isNotEmpty)
+                                              Wrap(
+                                                spacing: 4,
+                                                runSpacing: 4,
+                                                children: item.tags
+                                                    .map((tag) => TagBadge(
+                                                          tag: tag,
+                                                          variant: FBadgeVariant.outline,
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                          ],
+                                        ),
+                                        prefix: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ReorderableDragStartListener(
+                                              index: index,
+                                              child: const Padding(
+                                                padding: EdgeInsets.only(right: 8),
+                                                child: Icon(FLucideIcons.gripVertical, size: 20),
+                                              ),
+                                            ),
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () => _toggleTodoStatus(item.todo, false),
+                                              child: FCheckbox(
+                                                value: true,
+                                                onChange: (value) => _toggleTodoStatus(item.todo, value),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        suffix: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
+                                              onPress: () => Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) => AddTodoPage(
+                                                    todo: item.todo,
+                                                    initialTags: item.tags,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: const Icon(FLucideIcons.pencil),
+                                            ),
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
+                                              onPress: () => _deleteTodo(context, ref, item.todo),
+                                              child: const Icon(FLucideIcons.trash),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                               ],
                             ],

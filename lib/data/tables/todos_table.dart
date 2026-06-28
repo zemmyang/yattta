@@ -28,6 +28,8 @@ class Todos extends Table with AuditColumns {
   IntColumn get workDuration => integer().nullable()();
   IntColumn get breakDuration => integer().nullable()();
 
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

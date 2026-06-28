@@ -12,6 +12,8 @@ class Trackers extends Table with AuditColumns {
   IntColumn    get direction => intEnum<TrackerDirection>().withDefault(const Constant(0))(); // Default to increasing
   TextColumn   get notes     => text().nullable()();
 
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
   // No recurrence fields here — scheduling is delegated to Reminders
 
   @override

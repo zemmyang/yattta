@@ -22,7 +22,7 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
   // Watch all active tasks
   Stream<List<Task>> watchAll() => (select(tasks)
     ..where((t) => t.deletedAt.isNull() & t.isActive.equals(true))
-    ..orderBy([(t) => OrderingTerm.asc(t.nextDueAt)]))
+    ..orderBy([(t) => OrderingTerm.asc(t.position), (t) => OrderingTerm.asc(t.nextDueAt)]))
       .watch();
 
   // Watch all deleted tasks
@@ -34,7 +34,7 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
   Stream<List<TaskWithTags>> watchAllWithTags() {
     final tasksStream = (select(tasks)
       ..where((t) => t.deletedAt.isNull())
-      ..orderBy([(t) => OrderingTerm.asc(t.title)]))
+      ..orderBy([(t) => OrderingTerm.asc(t.position), (t) => OrderingTerm.asc(t.title)]))
         .watch();
         
     return tasksStream.asyncMap((taskList) async {
@@ -100,4 +100,13 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> hardDelete(String id) =>
       (delete(tasks)..where((t) => t.id.equals(id))).go();
+
+  Future<void> updatePositions(List<String> ids) async {
+    await batch((batch) {
+      for (int i = 0; i < ids.length; i++) {
+        batch.update(tasks, TasksCompanion(position: Value(i)),
+            where: (t) => t.id.equals(ids[i]));
+      }
+    });
+  }
 }

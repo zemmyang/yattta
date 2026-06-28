@@ -25,6 +25,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   final _workDurationController = TextEditingController();
   final _breakDurationController = TextEditingController();
   final _selectedTagIds = <String>{};
+  DateTime? _selectedDueDate;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
       _notesController.text = widget.todo!.notes ?? '';
       _workDurationController.text = widget.todo!.workDuration?.toString() ?? '';
       _breakDurationController.text = widget.todo!.breakDuration?.toString() ?? '';
+      _selectedDueDate = widget.todo!.dueAt;
       if (widget.initialTags != null) {
         _selectedTagIds.addAll(widget.initialTags!.map((t) => t.id));
       }
@@ -62,6 +64,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
       title: drift.Value(title),
       notes: drift.Value(_notesController.text.trim()),
       status: drift.Value(widget.todo?.status ?? TodoStatus.pending),
+      dueAt: drift.Value(_selectedDueDate),
       workDuration: drift.Value(int.tryParse(_workDurationController.text)),
       breakDuration: drift.Value(int.tryParse(_breakDurationController.text)),
       createdAt: drift.Value(widget.todo?.createdAt ?? DateTime.now()),
@@ -146,6 +149,58 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
               hint: 'Add more details...',
               maxLines: 5,
               control: FTextFieldControl.managed(controller: _notesController),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Due Date',
+                      style: FTheme.of(context).typography.sm.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    if (_selectedDueDate != null)
+                      Text(
+                        '${_selectedDueDate!.year}-${_selectedDueDate!.month.toString().padLeft(2, '0')}-${_selectedDueDate!.day.toString().padLeft(2, '0')}',
+                        style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                      )
+                    else
+                      Text(
+                        'No due date',
+                        style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                      ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    if (_selectedDueDate != null)
+                      FButton.icon(
+                        variant: FButtonVariant.ghost,
+                        size: FButtonSizeVariant.sm,
+                        onPress: () => setState(() => _selectedDueDate = null),
+                        child: const Icon(FLucideIcons.x),
+                      ),
+                    FButton.icon(
+                      variant: FButtonVariant.outline,
+                      size: FButtonSizeVariant.sm,
+                      onPress: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDueDate ?? DateTime.now(),
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 3650)),
+                        );
+                        if (date != null) {
+                          setState(() => _selectedDueDate = date);
+                        }
+                      },
+                      child: const Icon(FLucideIcons.calendar),
+                    ),
+                  ],
+                ),
+              ],
             ),
             if (isPowerUser) ...[
               const SizedBox(height: 24),
@@ -242,9 +297,5 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
         ),
       ),
     );
-  }
-
-  Color _getContrastColor(Color color) {
-    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
   }
 }

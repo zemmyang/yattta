@@ -16,6 +16,8 @@ class Tasks extends Table with AuditColumns {
   BoolColumn get isActive =>
       boolean().withDefault(const Constant(true))();
 
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

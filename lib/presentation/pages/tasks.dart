@@ -104,21 +104,49 @@ class TasksPage extends ConsumerWidget {
   Widget _buildTaskGroup(BuildContext context, WidgetRef ref, String title, List<Task> tasks, List<TaskLog> logs) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: FTileGroup(
-        label: Text(title),
-        children: tasks.map((task) {
-          final log = logs.where((l) => l.taskId == task.id).firstOrNull;
-          return _buildTaskTile(context, ref, task, log);
-        }).toList(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: FTheme.of(context).typography.sm.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: FTheme.of(context).colors.mutedForeground,
+                ),
+          ),
+          const SizedBox(height: 8),
+          ReorderableListView.builder(
+            buildDefaultDragHandles: false,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: tasks.length,
+            onReorder: (oldIndex, newIndex) {
+              if (oldIndex < newIndex) {
+                newIndex -= 1;
+              }
+              final item = tasks.removeAt(oldIndex);
+              tasks.insert(newIndex, item);
+              ref.read(tasksDaoProvider).updatePositions(
+                    tasks.map((t) => t.id).toList(),
+                  );
+            },
+            itemBuilder: (context, index) {
+              final task = tasks[index];
+              final log = logs.where((l) => l.taskId == task.id).firstOrNull;
+              return _buildTaskTile(context, ref, task, log, index);
+            },
+          ),
+        ],
       ),
     );
   }
 
-  FTile _buildTaskTile(BuildContext context, WidgetRef ref, Task task, TaskLog? log) {
+  FTile _buildTaskTile(BuildContext context, WidgetRef ref, Task task, TaskLog? log, int index) {
     final isDone = log?.status == TaskLogStatus.done;
     final isSkipped = log?.status == TaskLogStatus.skipped;
 
     return FTile(
+      key: ValueKey(task.id),
       title: Row(
         children: [
           Expanded(
@@ -149,9 +177,21 @@ class TasksPage extends ConsumerWidget {
       subtitle: log?.notes != null && log!.notes!.isNotEmpty 
         ? Text(log.notes!, maxLines: 1, overflow: TextOverflow.ellipsis) 
         : (task.notes != null ? Text(task.notes!) : null),
-      prefix: FCheckbox(
-        value: isDone,
-        onChange: (value) => _toggleTaskDone(ref, task, log, value),
+      prefix: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ReorderableDragStartListener(
+            index: index,
+            child: const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(FLucideIcons.gripVertical, size: 20),
+            ),
+          ),
+          FCheckbox(
+            value: isDone,
+            onChange: (value) => _toggleTaskDone(ref, task, log, value),
+          ),
+        ],
       ),
       suffix: Row(
         mainAxisSize: MainAxisSize.min,

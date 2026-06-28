@@ -57,7 +57,6 @@ class _TagsPageState extends ConsumerState<TagsPage> {
                   }),
                 ),
                 children: tagsWithItems.asMap().entries.map((entry) {
-                  final index = entry.key;
                   final item = entry.value;
                   final totalItems = item.todos.length + item.tasks.length + item.trackers.length;
 
