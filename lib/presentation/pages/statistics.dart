@@ -101,6 +101,16 @@ class StatisticsPage extends ConsumerWidget {
                   suffix: const Text('Error'),
                 ),
               ),
+              FTile(
+                title: const Text('Total Pomodoros'),
+                suffix: StreamBuilder<int>(
+                  stream: ref.read(pomodoroSessionsDaoProvider).watchTotalCompleted(),
+                  builder: (context, snapshot) {
+                    return Text(snapshot.data?.toString() ?? '0');
+                  },
+                ),
+                prefix: const Icon(FLucideIcons.timer),
+              ),
             ],
           ),
           const SizedBox(height: 32),

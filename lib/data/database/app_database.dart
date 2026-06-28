@@ -23,6 +23,7 @@ import '../daos/trackers_dao.dart';
 import '../daos/reminders_dao.dart';
 import '../daos/tags_dao.dart';
 import '../daos/settings_dao.dart';
+import '../daos/pomodoro_sessions_dao.dart';
 
 import '../../domain/models/recurrence_rule.dart';
 import '../converters/recurrence_rule_converter.dart';
@@ -52,6 +53,7 @@ part 'app_database.g.dart';
     RemindersDao,
     TagsDao,
     SettingsDao,
+    PomodoroSessionsDao,
   ],
 )
 
@@ -59,12 +61,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   // Migrations go here as schemaVersion grows
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // Add work_duration and break_duration to todos
+        await m.addColumn(todos, todos.workDuration);
+        await m.addColumn(todos, todos.breakDuration);
+      }
+    },
   );
 }
 

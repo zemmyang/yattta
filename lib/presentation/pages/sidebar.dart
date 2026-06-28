@@ -6,6 +6,7 @@ import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/presentation/pages/tags.dart';
 import 'package:yattta/presentation/pages/settings.dart';
 import 'package:yattta/presentation/pages/statistics.dart';
+import 'package:yattta/presentation/pages/recycle_bin.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 
@@ -50,6 +51,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
             onMenuPressed: () => showAppSidebar(context, themeController),
           ),
       visible: settingsController.userMode == UserMode.powerUser,
+    ),
+    (
+      icon: FLucideIcons.trash,
+      label: 'Recycle Bin',
+      builder: (context) => RecycleBinPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          ),
+      visible: true,
     ),
     (
       icon: FLucideIcons.settings,

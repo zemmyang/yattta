@@ -9,6 +9,7 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/data/daos/trackers_dao.dart';
 import 'add_tracker.dart';
 import 'tracker_details.dart';
+import 'tag_dialogs.dart';
 
 class TrackersPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -133,10 +134,7 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
                     spacing: 4,
                     runSpacing: 4,
                     children: widget.item.tags
-                        .map((tag) => FBadge(
-                              variant: FBadgeVariant.secondary,
-                              child: Text(tag.name),
-                            ))
+                        .map((tag) => TagBadge(tag: tag))
                         .toList(),
                   ),
                 ],
@@ -164,8 +162,40 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
             onPress: _logValue,
             child: const Icon(FLucideIcons.check),
           ),
+          const SizedBox(width: 8),
+          FButton.icon(
+            variant: FButtonVariant.ghost,
+            onPress: () => _deleteTracker(context, ref, widget.item.tracker),
+            child: const Icon(FLucideIcons.trash),
+          ),
         ],
       ),
     );
+  }
+
+  void _deleteTracker(BuildContext context, WidgetRef ref, Tracker tracker) async {
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Delete Tracker'),
+        body: const Text('Are you sure you want to move this tracker to the recycle bin?'),
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(false),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            variant: FButtonVariant.destructive,
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(trackersDaoProvider).softDelete(tracker.id);
+    }
   }
 }

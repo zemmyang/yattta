@@ -25,6 +25,12 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
     ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
       .watch();
 
+  // Fetch all deleted todos
+  Stream<List<Todo>> watchDeleted() => (select(todos)
+    ..where((t) => t.deletedAt.isNotNull())
+    ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]))
+      .watch();
+
   Stream<List<TodoWithTags>> watchAllWithTags() {
     final todoStream = watchAll();
     return todoStream.asyncMap((todoList) async {
@@ -57,4 +63,13 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   Future<void> softDelete(String id) =>
       (update(todos)..where((t) => t.id.equals(id)))
           .write(TodosCompanion(deletedAt: Value(DateTime.now())));
+
+  // Restore
+  Future<void> restore(String id) =>
+      (update(todos)..where((t) => t.id.equals(id)))
+          .write(const TodosCompanion(deletedAt: Value(null)));
+
+  // Hard delete
+  Future<void> hardDelete(String id) =>
+      (delete(todos)..where((t) => t.id.equals(id))).go();
 }

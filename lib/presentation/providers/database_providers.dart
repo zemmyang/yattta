@@ -29,8 +29,16 @@ final tagsDaoProvider = Provider(
       (ref) => ref.watch(appDatabaseProvider).tagsDao,
 );
 
+final pomodoroSessionsDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).pomodoroSessionsDao,
+);
+
 final tagsStreamProvider = StreamProvider((ref) {
   return ref.watch(tagsDaoProvider).watchAll();
+});
+
+final deletedTagsProvider = StreamProvider((ref) {
+  return ref.watch(tagsDaoProvider).watchDeleted();
 });
 
 final activeTasksProvider = StreamProvider((ref) {
@@ -49,12 +57,24 @@ final trackersProvider = StreamProvider((ref) {
   return ref.watch(trackersDaoProvider).watchAllWithTags();
 });
 
+final deletedTrackersProvider = StreamProvider((ref) {
+  return ref.watch(trackersDaoProvider).watchDeleted();
+});
+
 final todosProvider = StreamProvider((ref) {
   return ref.watch(todosDaoProvider).watchAllWithTags();
 });
 
+final deletedTodosProvider = StreamProvider((ref) {
+  return ref.watch(todosDaoProvider).watchDeleted();
+});
+
 final tasksWithTagsProvider = StreamProvider((ref) {
   return ref.watch(tasksDaoProvider).watchAllWithTags();
+});
+
+final deletedTasksProvider = StreamProvider((ref) {
+  return ref.watch(tasksDaoProvider).watchDeleted();
 });
 
 class TagWithItems {

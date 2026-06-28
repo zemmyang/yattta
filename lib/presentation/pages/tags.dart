@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 
 class TagsPage extends ConsumerStatefulWidget {
@@ -61,7 +62,17 @@ class _TagsPageState extends ConsumerState<TagsPage> {
                   final totalItems = item.todos.length + item.tasks.length + item.trackers.length;
 
                   return FAccordionItem(
-                    title: Text('${item.tag.name} ($totalItems)'),
+                    title: Row(
+                      children: [
+                        Expanded(child: Text('${item.tag.name} ($totalItems)')),
+                        FButton.icon(
+                          variant: FButtonVariant.ghost,
+                          size: FButtonSizeVariant.sm,
+                          onPress: () => _deleteTag(context, ref, item.tag),
+                          child: const Icon(FLucideIcons.trash),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -121,5 +132,31 @@ class _TagsPageState extends ConsumerState<TagsPage> {
         ),
       ),
     );
+  }
+
+  void _deleteTag(BuildContext context, WidgetRef ref, Tag tag) async {
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Delete Tag'),
+        body: Text('Are you sure you want to move the tag "${tag.name}" to the recycle bin?'),
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(false),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            variant: FButtonVariant.destructive,
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(tagsDaoProvider).softDelete(tag.id);
+    }
   }
 }

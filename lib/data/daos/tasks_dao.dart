@@ -25,6 +25,12 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
     ..orderBy([(t) => OrderingTerm.asc(t.nextDueAt)]))
       .watch();
 
+  // Watch all deleted tasks
+  Stream<List<Task>> watchDeleted() => (select(tasks)
+    ..where((t) => t.deletedAt.isNotNull())
+    ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]))
+      .watch();
+
   Stream<List<TaskWithTags>> watchAllWithTags() {
     final tasksStream = (select(tasks)
       ..where((t) => t.deletedAt.isNull())
@@ -87,4 +93,11 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
   Future<void> softDelete(String id) =>
       (update(tasks)..where((t) => t.id.equals(id)))
           .write(TasksCompanion(deletedAt: Value(DateTime.now())));
+
+  Future<void> restore(String id) =>
+      (update(tasks)..where((t) => t.id.equals(id)))
+          .write(const TasksCompanion(deletedAt: Value(null)));
+
+  Future<void> hardDelete(String id) =>
+      (delete(tasks)..where((t) => t.id.equals(id))).go();
 }

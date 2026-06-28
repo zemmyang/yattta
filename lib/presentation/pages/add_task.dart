@@ -259,21 +259,27 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
                 }
 
                 final tags = snapshot.data!;
-                return FSelectGroup<String>(
-                  label: const Text('Select Tags'),
-                  control: FMultiValueControl.lifted(
-                    value: _selectedTagIds,
-                    onChange: (values) {
-                      setState(() {
-                        _selectedTagIds.clear();
-                        _selectedTagIds.addAll(values);
-                      });
-                    },
-                  ),
-                  children: tags.map((tag) => FSelectGroupItemMixin.checkbox(
-                    value: tag.id,
-                    label: Text(tag.name),
-                  )).toList(),
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: tags.map((tag) {
+                    final isSelected = _selectedTagIds.contains(tag.id);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedTagIds.remove(tag.id);
+                          } else {
+                            _selectedTagIds.add(tag.id);
+                          }
+                        });
+                      },
+                      child: TagBadge(
+                        tag: tag,
+                        variant: isSelected ? FBadgeVariant.primary : FBadgeVariant.outline,
+                      ),
+                    );
+                  }).toList(),
                 );
               },
             ),

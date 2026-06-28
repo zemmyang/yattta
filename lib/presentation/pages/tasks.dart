@@ -119,12 +119,32 @@ class TasksPage extends ConsumerWidget {
     final isSkipped = log?.status == TaskLogStatus.skipped;
 
     return FTile(
-      title: Text(
-        task.title,
-        style: TextStyle(
-          decoration: isDone ? TextDecoration.lineThrough : null,
-          color: isSkipped || isDone ? FTheme.of(context).colors.mutedForeground : null,
-        ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              task.title,
+              style: TextStyle(
+                decoration: isDone ? TextDecoration.lineThrough : null,
+                color: isSkipped || isDone ? FTheme.of(context).colors.mutedForeground : null,
+              ),
+            ),
+          ),
+          StreamBuilder<int>(
+            stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTask(task.id),
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              if (count == 0) return const SizedBox();
+              return Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: FBadge(
+                  variant: FBadgeVariant.secondary,
+                  child: Text('$count 🍅'),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       subtitle: log?.notes != null && log!.notes!.isNotEmpty 
         ? Text(log.notes!, maxLines: 1, overflow: TextOverflow.ellipsis) 
@@ -148,10 +168,14 @@ class TasksPage extends ConsumerWidget {
               child: const Icon(FLucideIcons.circleSlash),
             ),
           const SizedBox(width: 4),
-          FButton.icon(
-            variant: FButtonVariant.ghost,
-            onPress: () => _editTask(context, ref, task),
-            child: const Icon(FLucideIcons.pencil),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _editTask(context, ref, task),
+            child: FButton.icon(
+              variant: FButtonVariant.ghost,
+              onPress: () => _editTask(context, ref, task),
+              child: const Icon(FLucideIcons.pencil),
+            ),
           ),
           const SizedBox(width: 4),
           FButton.icon(

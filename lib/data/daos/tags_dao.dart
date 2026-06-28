@@ -15,6 +15,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
     ..orderBy([(t) => OrderingTerm.asc(t.name)]))
       .watch();
 
+  Stream<List<Tag>> watchDeleted() => (select(tags)
+    ..where((t) => t.deletedAt.isNotNull())
+    ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]))
+      .watch();
+
   Future<List<Tag>> getTagsForTodo(String todoId) {
     final query = select(tags).join([
       innerJoin(todoTags, todoTags.tagId.equalsExp(tags.id)),
@@ -59,6 +64,9 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
         TrackerTagsCompanion.insert(trackerId: trackerId, tagId: tagId),
       );
 
+  Future<void> detachAllFromTodo(String todoId) =>
+      (delete(todoTags)..where((t) => t.todoId.equals(todoId))).go();
+
   Future<void> detachAllFromTask(String taskId) =>
       (delete(taskTags)..where((t) => t.taskId.equals(taskId))).go();
 
@@ -71,4 +79,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
   Future<void> softDelete(String id) =>
       (update(tags)..where((t) => t.id.equals(id)))
           .write(TagsCompanion(deletedAt: Value(DateTime.now())));
+
+  Future<void> restore(String id) =>
+      (update(tags)..where((t) => t.id.equals(id)))
+          .write(const TagsCompanion(deletedAt: Value(null)));
+
+  Future<void> hardDelete(String id) =>
+      (delete(tags)..where((t) => t.id.equals(id))).go();
 }

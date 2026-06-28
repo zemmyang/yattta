@@ -10,7 +10,10 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 
 class AddTodoPage extends ConsumerStatefulWidget {
-  const AddTodoPage({super.key});
+  final Todo? todo;
+  final List<Tag>? initialTags;
+
+  const AddTodoPage({super.key, this.todo, this.initialTags});
 
   @override
   ConsumerState<AddTodoPage> createState() => _AddTodoPageState();
@@ -18,13 +21,29 @@ class AddTodoPage extends ConsumerStatefulWidget {
 
 class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   final _titleController = TextEditingController();
+  final _notesController = TextEditingController();
   final _workDurationController = TextEditingController();
   final _breakDurationController = TextEditingController();
   final _selectedTagIds = <String>{};
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.todo != null) {
+      _titleController.text = widget.todo!.title;
+      _notesController.text = widget.todo!.notes ?? '';
+      _workDurationController.text = widget.todo!.workDuration?.toString() ?? '';
+      _breakDurationController.text = widget.todo!.breakDuration?.toString() ?? '';
+      if (widget.initialTags != null) {
+        _selectedTagIds.addAll(widget.initialTags!.map((t) => t.id));
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
+    _notesController.dispose();
     _workDurationController.dispose();
     _breakDurationController.dispose();
     super.dispose();
@@ -36,17 +55,22 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
 
     final todosDao = ref.read(todosDaoProvider);
     final tagsDao = ref.read(tagsDaoProvider);
-    final todoId = const Uuid().v4();
+    final todoId = widget.todo?.id ?? const Uuid().v4();
 
     await todosDao.upsert(TodosCompanion(
       id: drift.Value(todoId),
       title: drift.Value(title),
-      status: const drift.Value(TodoStatus.pending),
+      notes: drift.Value(_notesController.text.trim()),
+      status: drift.Value(widget.todo?.status ?? TodoStatus.pending),
       workDuration: drift.Value(int.tryParse(_workDurationController.text)),
       breakDuration: drift.Value(int.tryParse(_breakDurationController.text)),
-      createdAt: drift.Value(DateTime.now()),
+      createdAt: drift.Value(widget.todo?.createdAt ?? DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
     ));
+
+    if (widget.todo != null) {
+      await tagsDao.detachAllFromTodo(todoId);
+    }
 
     for (final tagId in _selectedTagIds) {
       await tagsDao.attachToTodo(todoId, tagId);
@@ -57,15 +81,53 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
     }
   }
 
+  void _deleteTodo() async {
+    if (widget.todo == null) return;
+
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Delete Todo'),
+        body: const Text('Are you sure you want to move this todo to the recycle bin?'),
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(false),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            variant: FButtonVariant.destructive,
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await ref.read(todosDaoProvider).softDelete(widget.todo!.id);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPowerUser = settingsController.userMode == UserMode.powerUser;
 
     return FScaffold(
       header: FHeader.nested(
-        title: const Text('Add Todo'),
+        title: Text(widget.todo == null ? 'Add Todo' : 'Edit Todo'),
         prefixes: [
           FHeaderAction.x(onPress: () => Navigator.of(context).pop()),
+        ],
+        suffixes: [
+          if (widget.todo != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.trash),
+              onPress: _deleteTodo,
+            ),
         ],
       ),
       child: SingleChildScrollView(
@@ -77,6 +139,13 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
               label: const Text('Todo Title'),
               hint: 'What needs to be done?',
               control: FTextFieldControl.managed(controller: _titleController),
+            ),
+            const SizedBox(height: 24),
+            FTextField(
+              label: const Text('Notes'),
+              hint: 'Add more details...',
+              maxLines: 5,
+              control: FTextFieldControl.managed(controller: _notesController),
             ),
             if (isPowerUser) ...[
               const SizedBox(height: 24),
@@ -142,19 +211,19 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
                   runSpacing: 8,
                   children: tags.map((tag) {
                     final isSelected = _selectedTagIds.contains(tag.id);
-                    return FBadge(
-                      variant: isSelected ? FBadgeVariant.primary : FBadgeVariant.outline,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedTagIds.remove(tag.id);
-                            } else {
-                              _selectedTagIds.add(tag.id);
-                            }
-                          });
-                        },
-                        child: Text(tag.name),
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedTagIds.remove(tag.id);
+                          } else {
+                            _selectedTagIds.add(tag.id);
+                          }
+                        });
+                      },
+                      child: TagBadge(
+                        tag: tag,
+                        variant: isSelected ? FBadgeVariant.primary : FBadgeVariant.outline,
                       ),
                     );
                   }).toList(),
@@ -173,5 +242,9 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
         ),
       ),
     );
+  }
+
+  Color _getContrastColor(Color color) {
+    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
   }
 }
