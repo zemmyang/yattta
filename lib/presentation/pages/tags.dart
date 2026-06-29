@@ -37,7 +37,7 @@ class _TagsPageState extends ConsumerState<TagsPage> {
             return Center(
               child: Text(
                 'No tags found',
-                style: FTheme.of(context).typography.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                style: FTheme.of(context).typography.body.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
               ),
             );
           }
@@ -125,7 +125,7 @@ class _TagsPageState extends ConsumerState<TagsPage> {
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(
         title.toUpperCase(),
-        style: FTheme.of(context).typography.xs.copyWith(
+        style: FTheme.of(context).typography.body.xs.copyWith(
           fontWeight: FontWeight.bold,
           color: FTheme.of(context).colors.mutedForeground,
         ),

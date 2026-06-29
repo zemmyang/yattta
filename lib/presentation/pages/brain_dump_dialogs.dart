@@ -91,7 +91,7 @@ Future<void> showBrainDumpReviewDialog(BuildContext context, WidgetRef ref) asyn
                       ),
                       subtitle: Text(
                         'Saved at: ${note.createdAt.hour.toString().padLeft(2, '0')}:${note.createdAt.minute.toString().padLeft(2, '0')}',
-                        style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                        style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

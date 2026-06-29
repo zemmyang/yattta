@@ -106,7 +106,7 @@ Future<ReminderData?> showAddReminderDialog(BuildContext context, {bool showRecu
                     ),
                     if (selectedFrequency == 'weekly') ...[
                       const SizedBox(height: 16),
-                      Text('On weekdays', style: theme.typography.sm.copyWith(fontWeight: FontWeight.bold)),
+                      Text('On weekdays', style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 4,

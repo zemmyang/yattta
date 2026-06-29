@@ -45,7 +45,7 @@ class TrackersPage extends ConsumerWidget {
                 buildDefaultDragHandles: false,
                 padding: const EdgeInsets.all(16),
                 itemCount: trackers.length,
-                onReorder: (oldIndex, newIndex) {
+                onReorderItem: (oldIndex, newIndex) {
                   if (oldIndex < newIndex) {
                     newIndex -= 1;
                   }

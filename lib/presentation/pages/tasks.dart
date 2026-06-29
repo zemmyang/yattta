@@ -109,7 +109,7 @@ class TasksPage extends ConsumerWidget {
         children: [
           Text(
             title,
-            style: FTheme.of(context).typography.sm.copyWith(
+            style: FTheme.of(context).typography.body.sm.copyWith(
                   fontWeight: FontWeight.bold,
                   color: FTheme.of(context).colors.mutedForeground,
                 ),
@@ -120,10 +120,7 @@ class TasksPage extends ConsumerWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: tasks.length,
-            onReorder: (oldIndex, newIndex) {
-              if (oldIndex < newIndex) {
-                newIndex -= 1;
-              }
+            onReorderItem: (oldIndex, newIndex) {
               final item = tasks.removeAt(oldIndex);
               tasks.insert(newIndex, item);
               ref.read(tasksDaoProvider).updatePositions(
@@ -296,7 +293,7 @@ class TasksPage extends ConsumerWidget {
         body: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Notes for ${task.title}', style: FTheme.of(context).typography.sm),
+            Text('Notes for ${task.title}', style: FTheme.of(context).typography.body.sm),
             const SizedBox(height: 8),
             FTextField(
               hint: 'What happened today?',

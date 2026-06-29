@@ -183,7 +183,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               children: [
                 Text(
                   'Reminders',
-                  style: FTheme.of(context).typography.lg.copyWith(fontWeight: FontWeight.bold),
+                  style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(
                   variant: FButtonVariant.outline,
@@ -196,7 +196,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
             if (_reminders.isEmpty)
               Text(
                 'No reminders set',
-                style: FTheme.of(context).typography.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                style: FTheme.of(context).typography.body.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
               )
             else
               Column(
@@ -211,7 +211,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
                         Expanded(
                           child: Text(
                             reminder.recurrenceRule.toString(),
-                            style: FTheme.of(context).typography.sm,
+                            style: FTheme.of(context).typography.body.sm,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -231,7 +231,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               children: [
                 Text(
                   'Tags',
-                  style: FTheme.of(context).typography.lg.copyWith(fontWeight: FontWeight.bold),
+                  style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(
                   variant: FButtonVariant.outline,
@@ -254,7 +254,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Text(
                     'No tags available',
-                    style: FTheme.of(context).typography.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                    style: FTheme.of(context).typography.body.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
                   );
                 }
 

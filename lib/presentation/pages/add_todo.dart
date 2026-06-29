@@ -159,17 +159,17 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
                   children: [
                     Text(
                       'Due Date',
-                      style: FTheme.of(context).typography.sm.copyWith(fontWeight: FontWeight.bold),
+                      style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
                     ),
                     if (_selectedDueDate != null)
                       Text(
                         '${_selectedDueDate!.year}-${_selectedDueDate!.month.toString().padLeft(2, '0')}-${_selectedDueDate!.day.toString().padLeft(2, '0')}',
-                        style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                        style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
                       )
                     else
                       Text(
                         'No due date',
-                        style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                        style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
                       ),
                   ],
                 ),
@@ -232,7 +232,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
               children: [
                 Text(
                   'Tags',
-                  style: FTheme.of(context).typography.sm.copyWith(fontWeight: FontWeight.bold),
+                  style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(
                   variant: FButtonVariant.ghost,
@@ -256,7 +256,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Text(
                     'No tags available',
-                    style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                    style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
                   );
                 }
 

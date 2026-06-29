@@ -51,7 +51,7 @@ class BrainDumpsPage extends ConsumerWidget {
                 ),
                 subtitle: Text(
                   'Saved at: ${note.createdAt.year}-${note.createdAt.month.toString().padLeft(2, '0')}-${note.createdAt.day.toString().padLeft(2, '0')} ${note.createdAt.hour.toString().padLeft(2, '0')}:${note.createdAt.minute.toString().padLeft(2, '0')}',
-                  style: FTheme.of(context).typography.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                  style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
                 ),
                 suffix: Row(
                   mainAxisSize: MainAxisSize.min,

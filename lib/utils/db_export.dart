@@ -26,7 +26,7 @@ Future<ExportResult> _exportNative() async {
 
     final bytes = await file.readAsBytes();
 
-    final outputPath = await FilePicker.platform.saveFile(
+    final outputPath = await FilePicker.saveFile(
       dialogTitle: 'Save Database Export',
       fileName: 'app_export.db',
       type: FileType.custom,

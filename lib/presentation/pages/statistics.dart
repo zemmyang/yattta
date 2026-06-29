@@ -30,7 +30,7 @@ class StatisticsPage extends ConsumerWidget {
         children: [
           Text(
             'Summary',
-            style: FTheme.of(context).typography.xl2.copyWith(fontWeight: FontWeight.bold),
+            style: FTheme.of(context).typography.display.xl2.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           FTileGroup(
@@ -116,7 +116,7 @@ class StatisticsPage extends ConsumerWidget {
           const SizedBox(height: 32),
           Text(
             'Keep up the great work!',
-            style: FTheme.of(context).typography.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
+            style: FTheme.of(context).typography.body.sm.copyWith(color: FTheme.of(context).colors.mutedForeground),
             textAlign: TextAlign.center,
           ),
         ],

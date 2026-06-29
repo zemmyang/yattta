@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
-import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 
 class RecycleBinPage extends ConsumerWidget {

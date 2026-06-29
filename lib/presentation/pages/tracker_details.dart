@@ -122,7 +122,7 @@ class TrackerDetailsPage extends ConsumerWidget {
               const SizedBox(height: 24),
               Text(
                 'Logs',
-                style: FTheme.of(context).typography.lg.copyWith(fontWeight: FontWeight.bold),
+                style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               ...logs.reversed.map((log) {

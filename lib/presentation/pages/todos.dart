@@ -254,7 +254,7 @@ class _MainState extends ConsumerState<Main> {
                     if (_focusedTodo != null) ...[
                       Text(
                         _focusedTodo!.title,
-                        style: FTheme.of(context).typography.lg.copyWith(
+                        style: FTheme.of(context).typography.body.lg.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                         textAlign: TextAlign.center,
@@ -333,7 +333,7 @@ class _MainState extends ConsumerState<Main> {
                               if (pendingTodos.isNotEmpty) ...[
                                 Text(
                                   'PENDING',
-                                  style: FTheme.of(context).typography.sm.copyWith(
+                                  style: FTheme.of(context).typography.body.sm.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: FTheme.of(context).colors.mutedForeground,
                                       ),
@@ -344,10 +344,7 @@ class _MainState extends ConsumerState<Main> {
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: pendingTodos.length,
-                                  onReorder: (oldIndex, newIndex) {
-                                    if (oldIndex < newIndex) {
-                                      newIndex -= 1;
-                                    }
+                                  onReorderItem: (oldIndex, newIndex) {
                                     final item = pendingTodos.removeAt(oldIndex);
                                     pendingTodos.insert(newIndex, item);
                                     ref.read(todosDaoProvider).updatePositions(
@@ -401,7 +398,7 @@ class _MainState extends ConsumerState<Main> {
                                                 padding: const EdgeInsets.only(top: 4, bottom: 4),
                                                 child: Text(
                                                   item.todo.notes!,
-                                                  style: FTheme.of(context).typography.sm.copyWith(
+                                                  style: FTheme.of(context).typography.body.sm.copyWith(
                                                         color: FTheme.of(context).colors.mutedForeground,
                                                       ),
                                                 ),
@@ -421,7 +418,7 @@ class _MainState extends ConsumerState<Main> {
                                                     const SizedBox(width: 4),
                                                     Text(
                                                       '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
-                                                      style: FTheme.of(context).typography.xs.copyWith(
+                                                      style: FTheme.of(context).typography.body.xs.copyWith(
                                                             color: item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
                                                                 ? Colors.red
                                                                 : FTheme.of(context).colors.mutedForeground,
@@ -493,7 +490,7 @@ class _MainState extends ConsumerState<Main> {
                               if (doneTodos.isNotEmpty) ...[
                                 Text(
                                   'DONE',
-                                  style: FTheme.of(context).typography.sm.copyWith(
+                                  style: FTheme.of(context).typography.body.sm.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: FTheme.of(context).colors.mutedForeground,
                                       ),
@@ -504,10 +501,7 @@ class _MainState extends ConsumerState<Main> {
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: doneTodos.length,
-                                  onReorder: (oldIndex, newIndex) {
-                                    if (oldIndex < newIndex) {
-                                      newIndex -= 1;
-                                    }
+                                  onReorderItem: (oldIndex, newIndex) {
                                     final item = doneTodos.removeAt(oldIndex);
                                     doneTodos.insert(newIndex, item);
                                     ref.read(todosDaoProvider).updatePositions(
@@ -566,7 +560,7 @@ class _MainState extends ConsumerState<Main> {
                                                 padding: const EdgeInsets.only(top: 4, bottom: 4),
                                                 child: Text(
                                                   item.todo.notes!,
-                                                  style: FTheme.of(context).typography.sm.copyWith(
+                                                  style: FTheme.of(context).typography.body.sm.copyWith(
                                                         color: FTheme.of(context).colors.mutedForeground,
                                                         decoration: TextDecoration.lineThrough,
                                                       ),
@@ -585,7 +579,7 @@ class _MainState extends ConsumerState<Main> {
                                                     const SizedBox(width: 4),
                                                     Text(
                                                       '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
-                                                      style: FTheme.of(context).typography.xs.copyWith(
+                                                      style: FTheme.of(context).typography.body.xs.copyWith(
                                                             color: FTheme.of(context).colors.mutedForeground,
                                                             decoration: TextDecoration.lineThrough,
                                                           ),

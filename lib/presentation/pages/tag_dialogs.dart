@@ -56,7 +56,7 @@ Future<String?> showAddTagDialog(BuildContext context, WidgetRef ref) async {
               const SizedBox(height: 16),
               Text(
                 'Color',
-                style: FTheme.of(context).typography.xs.copyWith(
+                style: FTheme.of(context).typography.body.xs.copyWith(
                       color: FTheme.of(context).colors.mutedForeground,
                       fontWeight: FontWeight.bold,
                     ),
@@ -100,7 +100,7 @@ Future<String?> showAddTagDialog(BuildContext context, WidgetRef ref) async {
                 const SizedBox(height: 16),
                 Text(
                   'Suggestions',
-                  style: FTheme.of(context).typography.xs.copyWith(
+                  style: FTheme.of(context).typography.body.xs.copyWith(
                         color: FTheme.of(context).colors.mutedForeground,
                         fontWeight: FontWeight.bold,
                       ),
