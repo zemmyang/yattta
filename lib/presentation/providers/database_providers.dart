@@ -33,6 +33,10 @@ final pomodoroSessionsDaoProvider = Provider(
   (ref) => ref.watch(appDatabaseProvider).pomodoroSessionsDao,
 );
 
+final brainDumpsDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).brainDumpsDao,
+);
+
 final tagsStreamProvider = StreamProvider((ref) {
   return ref.watch(tagsDaoProvider).watchAll();
 });
@@ -75,6 +79,18 @@ final tasksWithTagsProvider = StreamProvider((ref) {
 
 final deletedTasksProvider = StreamProvider((ref) {
   return ref.watch(tasksDaoProvider).watchDeleted();
+});
+
+final unreviewedBrainDumpsProvider = StreamProvider((ref) {
+  return ref.watch(brainDumpsDaoProvider).watchUnreviewed();
+});
+
+final allBrainDumpsProvider = StreamProvider((ref) {
+  return ref.watch(brainDumpsDaoProvider).watchAll();
+});
+
+final deletedBrainDumpsProvider = StreamProvider((ref) {
+  return ref.watch(brainDumpsDaoProvider).watchDeleted();
 });
 
 class TagWithItems {

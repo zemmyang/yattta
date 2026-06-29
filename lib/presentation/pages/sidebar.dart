@@ -4,6 +4,7 @@ import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/presentation/pages/tags.dart';
+import 'package:yattta/presentation/pages/brain_dumps.dart';
 import 'package:yattta/presentation/pages/settings.dart';
 import 'package:yattta/presentation/pages/statistics.dart';
 import 'package:yattta/presentation/pages/recycle_bin.dart';
@@ -43,6 +44,14 @@ void showAppSidebar(BuildContext context, ThemeController themeController) {
             onMenuPressed: () => showAppSidebar(context, themeController),
           ),
       visible: settingsController.userMode != UserMode.focused,
+    ),
+    (
+      icon: FLucideIcons.brain,
+      label: 'Brain Dumps',
+      builder: (context) => BrainDumpsPage(
+            onMenuPressed: () => showAppSidebar(context, themeController),
+          ),
+      visible: true,
     ),
     (
       icon: FLucideIcons.chartColumn,

@@ -12,6 +12,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_todo.dart';
+import 'package:yattta/presentation/pages/brain_dump_dialogs.dart';
 
 class TodosPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -29,6 +30,12 @@ class TodosPage extends ConsumerWidget {
               icon: const Icon(FLucideIcons.menu),
               onPress: onMenuPressed!,
             ),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: const Icon(FLucideIcons.lightbulb),
+            onPress: () => showBrainDumpDialog(context, ref),
+          ),
         ],
       ),
       child: Stack(
@@ -159,6 +166,13 @@ class _MainState extends ConsumerState<Main> {
         title: title,
         body: body,
       );
+
+      if (_timerMode == TimerMode.longBreak) {
+        final brainDumps = ref.read(unreviewedBrainDumpsProvider).value ?? [];
+        if (brainDumps.isNotEmpty) {
+          showBrainDumpReviewDialog(context, ref);
+        }
+      }
 
       if (shouldAutoStart) {
         _startTimer();

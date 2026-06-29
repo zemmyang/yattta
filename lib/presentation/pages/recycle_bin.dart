@@ -23,7 +23,7 @@ class RecycleBinPage extends ConsumerWidget {
         ],
       ),
       child: DefaultTabController(
-        length: 4,
+        length: 5,
         child: Column(
           children: [
             const TabBar(
@@ -33,6 +33,7 @@ class RecycleBinPage extends ConsumerWidget {
                 Tab(text: 'Tasks'),
                 Tab(text: 'Trackers'),
                 Tab(text: 'Tags'),
+                Tab(text: 'Brain Dumps'),
               ],
             ),
             Expanded(
@@ -42,6 +43,7 @@ class RecycleBinPage extends ConsumerWidget {
                   _DeletedTasksList(),
                   _DeletedTrackersList(),
                   _DeletedTagsList(),
+                  _DeletedBrainDumpsList(),
                 ],
               ),
             ),
@@ -120,6 +122,25 @@ class _DeletedTagsList extends ConsumerWidget {
               title: t.name,
               onRestore: () => ref.read(tagsDaoProvider).restore(t.id),
               onDelete: () => ref.read(tagsDaoProvider).hardDelete(t.id),
+            )).toList(),
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
+    );
+  }
+}
+
+class _DeletedBrainDumpsList extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deletedBrainDumpsAsync = ref.watch(deletedBrainDumpsProvider);
+    return deletedBrainDumpsAsync.when(
+      data: (notes) => _buildList(
+        context,
+        notes.map((n) => _RecycleItem(
+              title: n.note,
+              onRestore: () => ref.read(brainDumpsDaoProvider).restore(n.id),
+              onDelete: () => ref.read(brainDumpsDaoProvider).hardDelete(n.id),
             )).toList(),
       ),
       loading: () => const Center(child: CircularProgressIndicator()),

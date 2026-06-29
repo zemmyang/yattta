@@ -16,6 +16,7 @@ import '../tables/reminders_table.dart';
 import '../tables/tags_table.dart';
 import '../tables/junction_tables.dart';
 import '../tables/settings.dart';
+import '../tables/brain_dumps_table.dart';
 
 import '../daos/todos_dao.dart';
 import '../daos/tasks_dao.dart';
@@ -24,6 +25,7 @@ import '../daos/reminders_dao.dart';
 import '../daos/tags_dao.dart';
 import '../daos/settings_dao.dart';
 import '../daos/pomodoro_sessions_dao.dart';
+import '../daos/brain_dumps_dao.dart';
 
 import '../../domain/models/recurrence_rule.dart';
 import '../converters/recurrence_rule_converter.dart';
@@ -45,6 +47,7 @@ part 'app_database.g.dart';
     TaskTags,
     TrackerTags,
     Settings,
+    BrainDumps,
   ],
   daos: [
     TodosDao,
@@ -54,6 +57,7 @@ part 'app_database.g.dart';
     TagsDao,
     SettingsDao,
     PomodoroSessionsDao,
+    BrainDumpsDao,
   ],
 )
 
@@ -61,7 +65,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   // Migrations go here as schemaVersion grows
   @override
@@ -72,6 +76,9 @@ class AppDatabase extends _$AppDatabase {
         // Add work_duration and break_duration to todos
         await m.addColumn(todos, todos.workDuration);
         await m.addColumn(todos, todos.breakDuration);
+      }
+      if (from < 3) {
+        await m.createTable(brainDumps);
       }
     },
   );
