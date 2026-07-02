@@ -29,6 +29,10 @@ final tagsDaoProvider = Provider(
       (ref) => ref.watch(appDatabaseProvider).tagsDao,
 );
 
+final settingsDaoProvider = Provider(
+      (ref) => ref.watch(appDatabaseProvider).settingsDao,
+);
+
 final pomodoroSessionsDaoProvider = Provider(
   (ref) => ref.watch(appDatabaseProvider).pomodoroSessionsDao,
 );

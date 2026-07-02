@@ -254,17 +254,55 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               FAccordionItem(
+                title: const Text('WebDAV Sync'),
+                child: ListenableBuilder(
+                  listenable: settingsController,
+                  builder: (context, _) => Column(
+                    children: [
+                      FSwitch(
+                        label: const Text('Enable WebDAV Sync'),
+                        description: const Text('Automatically sync your database to a WebDAV server'),
+                        value: settingsController.webDavEnabled,
+                        onChange: (value) => settingsController.setWebDavEnabled(value),
+                      ),
+                      if (settingsController.webDavEnabled) ...[
+                        const SizedBox(height: 16),
+                        FTextField(
+                          label: const Text('Server URL'),
+                          description: const Text('The full URL of your WebDAV server'),
+                          hint: 'https://example.com/dav',
+                          control: FTextFieldControl.managed(
+                            initial: TextEditingValue(text: settingsController.webDavServer),
+                            onChange: (value) => settingsController.setWebDavServer(value.text),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FTextField(
+                          label: const Text('Username'),
+                          control: FTextFieldControl.managed(
+                            initial: TextEditingValue(text: settingsController.webDavUsername),
+                            onChange: (value) => settingsController.setWebDavUsername(value.text),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FTextField(
+                          label: const Text('Password'),
+                          obscureText: true,
+                          control: FTextFieldControl.managed(
+                            initial: TextEditingValue(text: settingsController.webDavPassword),
+                            onChange: (value) => settingsController.setWebDavPassword(value.text),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              FAccordionItem(
                 title: const Text('Data'),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    FTextField(
-                      enabled: false,
-                      label: const Text('Sync Server Address/IP'),
-                      description: const Text('Server for multi-device synchronization (Coming soon)'),
-                      hint: 'e.g. 192.168.1.100',
-                    ),
-                    const SizedBox(height: 16),
                     FButton(
                       child: const Text('Export Database'),
                       onPress: () async {
@@ -331,17 +369,17 @@ class _SettingsPageState extends State<SettingsPage> {
                                         child: const Text('PERMANENTLY DELETE'),
                                         onPress: () async {
                                           final navigator = Navigator.of(context);
-                                          
+
                                           // 1. Reset settings first while DB is still open
                                           settingsController.reset();
                                           widget.themeController.reset();
-                                          
+
                                           // 2. Small delay to let settings persist if needed
                                           await Future.delayed(const Duration(milliseconds: 100));
-                                          
+
                                           // 3. Delete DB file (closes connection)
                                           await deleteDatabaseFile();
-                                          
+
                                           if (context.mounted) {
                                             navigator.pop(); // Close dialog
                                             showFToast(

@@ -21,6 +21,10 @@ class SettingsController extends ChangeNotifier {
   UserMode _userMode = UserMode.standard;
   int _startOfWeek = DateTime.monday;
   String _syncServerAddress = '';
+  bool _webDavEnabled = false;
+  String _webDavServer = '';
+  String _webDavUsername = '';
+  String _webDavPassword = '';
 
   int get timerDuration => _timerDuration;
   int get breakDuration => _breakDuration;
@@ -32,6 +36,10 @@ class SettingsController extends ChangeNotifier {
   UserMode get userMode => _userMode;
   int get startOfWeek => _startOfWeek;
   String get syncServerAddress => _syncServerAddress;
+  bool get webDavEnabled => _webDavEnabled;
+  String get webDavServer => _webDavServer;
+  String get webDavUsername => _webDavUsername;
+  String get webDavPassword => _webDavPassword;
 
   Future<void> initialize(AppDatabase db) async {
     _dao = db.settingsDao;
@@ -44,6 +52,10 @@ class SettingsController extends ChangeNotifier {
     _autoStartWork = await _dao!.getBool('autoStartWork') ?? _autoStartWork;
     _startOfWeek = await _dao!.getInt('startOfWeek') ?? _startOfWeek;
     _syncServerAddress = await _dao!.getString('syncServerAddress') ?? _syncServerAddress;
+    _webDavEnabled = await _dao!.getBool('webDavEnabled') ?? _webDavEnabled;
+    _webDavServer = await _dao!.getString('webDavServer') ?? _webDavServer;
+    _webDavUsername = await _dao!.getString('webDavUsername') ?? _webDavUsername;
+    _webDavPassword = await _dao!.getString('webDavPassword') ?? _webDavPassword;
 
     final initialPageStr = await _dao!.getString('initialPage');
     if (initialPageStr != null) {
@@ -134,6 +146,34 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setWebDavEnabled(bool value) {
+    if (_webDavEnabled == value) return;
+    _webDavEnabled = value;
+    _dao?.setBool('webDavEnabled', value);
+    notifyListeners();
+  }
+
+  void setWebDavServer(String value) {
+    if (_webDavServer == value) return;
+    _webDavServer = value;
+    _dao?.setString('webDavServer', value);
+    notifyListeners();
+  }
+
+  void setWebDavUsername(String value) {
+    if (_webDavUsername == value) return;
+    _webDavUsername = value;
+    _dao?.setString('webDavUsername', value);
+    notifyListeners();
+  }
+
+  void setWebDavPassword(String value) {
+    if (_webDavPassword == value) return;
+    _webDavPassword = value;
+    _dao?.setString('webDavPassword', value);
+    notifyListeners();
+  }
+
   Future<void> reset() async {
     await _dao?.deleteAll();
     _timerDuration = 10;
@@ -146,6 +186,10 @@ class SettingsController extends ChangeNotifier {
     _userMode = UserMode.standard;
     _startOfWeek = DateTime.monday;
     _syncServerAddress = '';
+    _webDavEnabled = false;
+    _webDavServer = '';
+    _webDavUsername = '';
+    _webDavPassword = '';
     notifyListeners();
   }
 }
