@@ -70,6 +70,9 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
   Future<void> detachAllFromTask(String taskId) =>
       (delete(taskTags)..where((t) => t.taskId.equals(taskId))).go();
 
+  Future<void> detachAllFromTracker(String trackerId) =>
+      (delete(trackerTags)..where((t) => t.trackerId.equals(trackerId))).go();
+
   Future<void> detachFromTodo(String todoId, String tagId) =>
       (delete(todoTags)
         ..where((t) =>

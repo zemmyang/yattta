@@ -38,29 +38,35 @@ class WebDavSyncEngine implements SyncTransport {
 
   @override
   Future<void> push() async {
+    _report('Ensuring server folders exist');
     await client.ensureYatttaFolders();
 
-    _report('Pushing todos');
+    _report('Pushing todos...');
     await _pushTodos();
 
-    _report('Pushing tasks');
+    _report('Pushing tasks...');
     await _pushTasks();
 
-    _report('Pushing trackers');
+    _report('Pushing trackers...');
     await _pushTrackers();
   }
 
   @override
   Future<void> pull() async {
-    await client.ensureYatttaFolders();
+    // If the base folder doesn't exist yet, there's nothing to pull.
+    // This is expected on the very first sync from a new device.
+    if (!await client.exists('/yattta/')) {
+      _report('Server empty, skipping pull');
+      return;
+    }
 
-    _report('Pulling todos');
+    _report('Pulling todos...');
     await _pullTodos();
 
-    _report('Pulling tasks');
+    _report('Pulling tasks...');
     await _pullTasks();
 
-    _report('Pulling trackers');
+    _report('Pulling trackers...');
     await _pullTrackers();
   }
 

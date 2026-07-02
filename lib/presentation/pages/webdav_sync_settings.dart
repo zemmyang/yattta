@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/sync_provider.dart';
 import '../providers/sync_settings_provider.dart';
+import '../../utils/settings_controller.dart';
 
 
 class SyncSettingsScreen extends ConsumerStatefulWidget {
@@ -40,12 +41,10 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
-    await ref.read(syncSettingsProvider.notifier).updateConfig(
-      url: _urlController.text.trim(),
-      user: _userController.text.trim(),
-      password: _passwordController.text,
-    );
+  void _save() {
+    settingsController.setWebDavServer(_urlController.text.trim());
+    settingsController.setWebDavUsername(_userController.text.trim());
+    settingsController.setWebDavPassword(_passwordController.text);
   }
 
   @override

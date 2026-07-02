@@ -1,26 +1,45 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/utils/db_export.dart';
+import 'package:yattta/presentation/providers/sync_provider.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   final ThemeController themeController;
 
   const SettingsPage({super.key, required this.themeController});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _accordionKey = GlobalKey();
   final Set<int> _expandedIndices = {0, 1};
 
   @override
   Widget build(BuildContext context) {
+    final syncState = ref.watch(syncControllerProvider);
+    final isSyncing = syncState.status == SyncStatus.syncing;
+
+    // Success/Error feedback via listeners
+    ref.listen(syncControllerProvider, (previous, next) {
+      if (previous?.status == SyncStatus.syncing && next.status == SyncStatus.idle) {
+        showFToast(context: context, title: const Text('Sync Successful'));
+      } else if (next.status == SyncStatus.error) {
+        showFToast(
+          context: context,
+          title: const Text('Sync Failed'),
+          description: Text(next.errorMessage ?? 'Unknown error'),
+          variant: FToastVariant.destructive,
+        );
+      }
+    });
+
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Settings'),
@@ -258,6 +277,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: ListenableBuilder(
                   listenable: settingsController,
                   builder: (context, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       FSwitch(
                         label: const Text('Enable WebDAV Sync'),
@@ -291,6 +311,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           control: FTextFieldControl.managed(
                             initial: TextEditingValue(text: settingsController.webDavPassword),
                             onChange: (value) => settingsController.setWebDavPassword(value.text),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        FButton(
+                          onPress: isSyncing
+                              ? null
+                              : () => ref.read(syncControllerProvider.notifier).syncNow(),
+                          child: Consumer(
+                            builder: (context, ref, _) {
+                              final progress = ref.watch(syncProgressProvider);
+                              return Text(isSyncing ? (progress ?? 'Syncing...') : 'Sync Now');
+                            },
                           ),
                         ),
                       ],

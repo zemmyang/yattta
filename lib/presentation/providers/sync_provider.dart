@@ -4,13 +4,19 @@
 // real DAOs -> SyncSources adapters -> engine. Also exposes a simple
 // SyncController for triggering push/pull from the UI with loading
 // state.
-//
-// The *Adapter classes below show the pattern for bridging your real
-// Drift DAOs to the SyncableXSource interfaces. They're written against
-// plausible method names from your schema (TodosDao, TasksDao,
-// TrackersDao, RemindersDao) — rename to match your actual DAO API.
 
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/database/app_database.dart';
+import '../../data/daos/todos_dao.dart';
+import '../../data/daos/tasks_dao.dart';
+import '../../data/daos/trackers_dao.dart';
+import '../../data/daos/reminders_dao.dart';
+import '../../data/daos/tags_dao.dart';
+import '../../data/converters/enum_converters.dart';
+import 'database_providers.dart';
 
 import '../../domain/sync/parsed_models.dart';
 import '../../domain/sync/sync_transport.dart';
@@ -26,208 +32,369 @@ import 'sync_settings_provider.dart';
 // ---------------------------------------------------------------------
 
 class TodosSyncAdapter implements SyncableTodosSource {
-  // final TodosDao dao;
-  // TodosSyncAdapter(this.dao);
+  final TodosDao dao;
+  final TagsDao tagsDao;
+  TodosSyncAdapter(this.dao, this.tagsDao);
 
   @override
   Future<List<ParsedTodo>> findAllForPush() async {
-    // final rows = await dao.findAll(includeDeleted: false);
-    // return rows.map((r) => ParsedTodo(
-    //   id: r.id,
-    //   title: r.title,
-    //   completed: r.completed,
-    //   dueAt: r.nextDueAt,
-    //   priority: _toParsedPriority(r.priority),
-    //   tags: r.tags, // however tags are joined in for you today
-    //   updatedAt: r.updatedAt,
-    // )).toList();
-    throw UnimplementedError('Wire up to TodosDao');
+    final rows = await (dao.select(dao.todos)..where((t) => t.deletedAt.isNull())).get();
+    final result = <ParsedTodo>[];
+    for (final r in rows) {
+      final tags = await tagsDao.getTagsForTodo(r.id);
+      result.add(ParsedTodo(
+        id: r.id,
+        title: r.title,
+        completed: r.status == TodoStatus.done,
+        dueAt: r.dueAt,
+        priority: _toParsedPriority(r.priority),
+        tags: tags.map((t) => t.name).toList(),
+        updatedAt: r.updatedAt,
+      ));
+    }
+    return result;
   }
 
   @override
   Future<ParsedTodo?> findById(String id) async {
-    // final r = await dao.findById(id);
-    // if (r == null) return null;
-    // return ParsedTodo(...);
-    throw UnimplementedError('Wire up to TodosDao');
+    final r = await (dao.select(dao.todos)..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
+    if (r == null) return null;
+    final tags = await tagsDao.getTagsForTodo(r.id);
+    return ParsedTodo(
+      id: r.id,
+      title: r.title,
+      completed: r.status == TodoStatus.done,
+      dueAt: r.dueAt,
+      priority: _toParsedPriority(r.priority),
+      tags: tags.map((t) => t.name).toList(),
+      updatedAt: r.updatedAt,
+    );
   }
 
   @override
   Future<void> upsertFromRemote(ParsedTodo remote) async {
-    // await dao.upsert(TodosCompanion(
-    //   id: Value(remote.id),
-    //   title: Value(remote.title),
-    //   completed: Value(remote.completed),
-    //   nextDueAt: Value(remote.dueAt),
-    //   priority: Value(_fromParsedPriority(remote.priority)),
-    //   updatedAt: Value(remote.updatedAt),
-    //   syncedAt: Value(DateTime.now()),
-    // ));
-    // await dao.replaceTags(remote.id, remote.tags);
-    throw UnimplementedError('Wire up to TodosDao');
+    await dao.upsert(TodosCompanion(
+      id: Value(remote.id),
+      title: Value(remote.title),
+      status: Value(remote.completed ? TodoStatus.done : TodoStatus.pending),
+      dueAt: Value(remote.dueAt),
+      priority: Value(_fromParsedPriority(remote.priority)),
+      updatedAt: Value(remote.updatedAt),
+    ));
+
+    await tagsDao.detachAllFromTodo(remote.id);
+    for (final tagName in remote.tags) {
+      final tagId = await _getOrCreateTag(tagName);
+      await tagsDao.attachToTodo(remote.id, tagId);
+    }
+  }
+
+  Future<String> _getOrCreateTag(String name) async {
+    final existing = await (tagsDao.select(tagsDao.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+
+    final id = name.toLowerCase().replaceAll(' ', '_');
+    await tagsDao.upsert(TagsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(DateTime.now()),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return id;
   }
 }
 
 class TasksSyncAdapter implements SyncableTasksSource {
-  // final TasksDao dao;
-  // TasksSyncAdapter(this.dao);
+  final TasksDao dao;
+  final TagsDao tagsDao;
+  final RemindersDao remindersDao;
+  TasksSyncAdapter(this.dao, this.tagsDao, this.remindersDao);
 
   @override
   Future<List<ParsedTask>> findAllForPush() async {
-    // final rows = await dao.findAll(includeDeleted: false);
-    // final result = <ParsedTask>[];
-    // for (final r in rows) {
-    //   final logs = await dao.logsFor(r.id);
-    //   result.add(ParsedTask(
-    //     id: r.id,
-    //     title: r.title,
-    //     displayOrder: r.displayOrder,
-    //     recurrence: r.recurrenceRule, // or however it's stringified
-    //     tags: r.tags,
-    //     reminders: await /* remindersAdapter */ null,
-    //     updatedAt: r.updatedAt,
-    //     logs: logs.map((l) => ParsedTaskLog(
-    //       date: l.occurredOn,
-    //       status: _toParsedStatus(l.status),
-    //       note: l.note,
-    //       skipReason: l.skipReason,
-    //     )).toList(),
-    //   ));
-    // }
-    // return result;
-    throw UnimplementedError('Wire up to TasksDao');
+    final rows = await (dao.select(dao.tasks)..where((t) => t.deletedAt.isNull())).get();
+    final result = <ParsedTask>[];
+    for (final r in rows) {
+      final tags = await tagsDao.getTagsForTask(r.id);
+      final logs = await dao.getLogsForTask(r.id);
+      final reminders = await remindersDao.getForTask(r.id);
+
+      result.add(ParsedTask(
+        id: r.id,
+        title: r.title,
+        displayOrder: r.position,
+        recurrence: r.recurrenceRule.toString(),
+        tags: tags.map((t) => t.name).toList(),
+        reminders: reminders.map((rem) => _formatTime(rem.remindAt)).toList(),
+        updatedAt: r.updatedAt,
+        logs: logs.map((l) => ParsedTaskLog(
+          date: l.triggeredAt,
+          status: _toParsedTaskLogStatus(l.status),
+          note: l.notes,
+          skipReason: l.skipReason,
+        )).toList(),
+      ));
+    }
+    return result;
   }
 
   @override
   Future<ParsedTask?> findById(String id) async {
-    throw UnimplementedError('Wire up to TasksDao');
+    final r = await (dao.select(dao.tasks)..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
+    if (r == null) return null;
+    final tags = await tagsDao.getTagsForTask(r.id);
+    final logs = await dao.getLogsForTask(r.id);
+    final reminders = await remindersDao.getForTask(r.id);
+
+    return ParsedTask(
+      id: r.id,
+      title: r.title,
+      displayOrder: r.position,
+      recurrence: r.recurrenceRule.toString(),
+      tags: tags.map((t) => t.name).toList(),
+      reminders: reminders.map((rem) => _formatTime(rem.remindAt)).toList(),
+      updatedAt: r.updatedAt,
+      logs: logs.map((l) => ParsedTaskLog(
+        date: l.triggeredAt,
+        status: _toParsedTaskLogStatus(l.status),
+        note: l.notes,
+        skipReason: l.skipReason,
+      )).toList(),
+    );
   }
 
   @override
   Future<void> upsertFromRemote(ParsedTask remote) async {
-    // await dao.upsert(TasksCompanion(
-    //   id: Value(remote.id),
-    //   title: Value(remote.title),
-    //   displayOrder: Value(remote.displayOrder),
-    //   recurrenceRule: Value(remote.recurrence),
-    //   updatedAt: Value(remote.updatedAt),
-    //   syncedAt: Value(DateTime.now()),
-    // ));
-    // await dao.replaceTags(remote.id, remote.tags);
-    // await dao.replaceLogsForTask(remote.id, remote.logs.map((l) =>
-    //   TaskLogsCompanion.insert(
-    //     taskId: remote.id,
-    //     occurredOn: l.date,
-    //     status: _fromParsedStatus(l.status),
-    //     note: Value(l.note),
-    //     skipReason: Value(l.skipReason),
-    //   ),
-    // ).toList());
-    throw UnimplementedError('Wire up to TasksDao');
+    await dao.upsert(TasksCompanion(
+      id: Value(remote.id),
+      title: Value(remote.title),
+      position: Value(remote.displayOrder),
+      updatedAt: Value(remote.updatedAt),
+    ));
+
+    await tagsDao.detachAllFromTask(remote.id);
+    for (final tagName in remote.tags) {
+      final tagId = await _getOrCreateTag(tagName);
+      await tagsDao.attachToTask(remote.id, tagId);
+    }
+
+    final existingLogs = await dao.getLogsForTask(remote.id);
+    for (final l in existingLogs) {
+      await dao.deleteLog(l.id);
+    }
+
+    for (final l in remote.logs) {
+      await dao.logOccurrence(TaskLogsCompanion(
+        id: Value(remote.id + l.date.millisecondsSinceEpoch.toString()),
+        taskId: Value(remote.id),
+        triggeredAt: Value(l.date),
+        status: Value(_fromParsedTaskLogStatus(l.status)),
+        notes: Value(l.note),
+        skipReason: Value(l.skipReason),
+      ));
+    }
+  }
+
+  Future<String> _getOrCreateTag(String name) async {
+    final existing = await (tagsDao.select(tagsDao.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+
+    final id = name.toLowerCase().replaceAll(' ', '_');
+    await tagsDao.upsert(TagsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(DateTime.now()),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return id;
   }
 }
 
 class TrackersSyncAdapter implements SyncableTrackersSource {
-  // final TrackersDao dao;
-  // TrackersSyncAdapter(this.dao);
+  final TrackersDao dao;
+  final TagsDao tagsDao;
+  final RemindersDao remindersDao;
+  TrackersSyncAdapter(this.dao, this.tagsDao, this.remindersDao);
 
   @override
   Future<List<ParsedTracker>> findAllForPush() async {
-    // final rows = await dao.findAll(includeDeleted: false);
-    // final result = <ParsedTracker>[];
-    // for (final r in rows) {
-    //   final logs = await dao.logsFor(r.id);
-    //   result.add(ParsedTracker(
-    //     id: r.id,
-    //     name: r.title,
-    //     displayOrder: r.displayOrder,
-    //     valueType: r.valueType == 'int'
-    //         ? ParsedValueType.int : ParsedValueType.float,
-    //     unit: r.unit,
-    //     goalDirection: r.goalDirection == 'up'
-    //         ? ParsedGoalDirection.up : ParsedGoalDirection.down,
-    //     tags: r.tags,
-    //     reminders: const [], // filled by RemindersSyncAdapter at merge time
-    //     updatedAt: r.updatedAt,
-    //     logs: logs.map((l) => ParsedTrackerLog(
-    //       loggedAt: l.loggedAt,
-    //       value: l.value,
-    //     )).toList(),
-    //   ));
-    // }
-    // return result;
-    throw UnimplementedError('Wire up to TrackersDao');
+    final rows = await (dao.select(dao.trackers)..where((t) => t.deletedAt.isNull())).get();
+    final result = <ParsedTracker>[];
+    for (final r in rows) {
+      final tags = await tagsDao.getTagsForTracker(r.id);
+      final logs = await dao.getLogsForTracker(r.id);
+      final reminders = await remindersDao.getForTracker(r.id);
+
+      result.add(ParsedTracker(
+        id: r.id,
+        name: r.title,
+        displayOrder: r.position,
+        valueType: r.valueType == TrackerValueType.integer ? ParsedValueType.int : ParsedValueType.float,
+        unit: r.unit ?? '',
+        goalDirection: r.direction == TrackerDirection.increasing ? ParsedGoalDirection.up : ParsedGoalDirection.down,
+        tags: tags.map((t) => t.name).toList(),
+        reminders: reminders.map((rem) => _formatTime(rem.remindAt)).toList(),
+        updatedAt: r.updatedAt,
+        logs: logs.map((l) => ParsedTrackerLog(
+          loggedAt: l.loggedAt,
+          value: l.value,
+        )).toList(),
+      ));
+    }
+    return result;
   }
 
   @override
   Future<ParsedTracker?> findById(String id) async {
-    throw UnimplementedError('Wire up to TrackersDao');
+    final r = await (dao.select(dao.trackers)..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
+    if (r == null) return null;
+    final tags = await tagsDao.getTagsForTracker(r.id);
+    final logs = await dao.getLogsForTracker(r.id);
+    final reminders = await remindersDao.getForTracker(r.id);
+
+    return ParsedTracker(
+      id: r.id,
+      name: r.title,
+      displayOrder: r.position,
+      valueType: r.valueType == TrackerValueType.integer ? ParsedValueType.int : ParsedValueType.float,
+      unit: r.unit ?? '',
+      goalDirection: r.direction == TrackerDirection.increasing ? ParsedGoalDirection.up : ParsedGoalDirection.down,
+      tags: tags.map((t) => t.name).toList(),
+      reminders: reminders.map((rem) => _formatTime(rem.remindAt)).toList(),
+      updatedAt: r.updatedAt,
+      logs: logs.map((l) => ParsedTrackerLog(
+        loggedAt: l.loggedAt,
+        value: l.value,
+      )).toList(),
+    );
   }
 
   @override
   Future<void> upsertFromRemote(ParsedTracker remote) async {
-    // await dao.upsert(TrackersCompanion(
-    //   id: Value(remote.id),
-    //   title: Value(remote.name),
-    //   displayOrder: Value(remote.displayOrder),
-    //   valueType: Value(remote.valueType.name),
-    //   unit: Value(remote.unit),
-    //   goalDirection: Value(remote.goalDirection.name),
-    //   updatedAt: Value(remote.updatedAt),
-    //   syncedAt: Value(DateTime.now()),
-    // ));
-    // await dao.replaceTags(remote.id, remote.tags);
-    // await dao.upsertLogsByTimestamp(remote.id, remote.logs.map((l) =>
-    //   TrackerLogsCompanion.insert(
-    //     trackerId: remote.id,
-    //     loggedAt: l.loggedAt,
-    //     value: l.value,
-    //   ),
-    // ).toList());
-    throw UnimplementedError('Wire up to TrackersDao');
+    await dao.upsert(TrackersCompanion(
+      id: Value(remote.id),
+      title: Value(remote.name),
+      position: Value(remote.displayOrder),
+      valueType: Value(remote.valueType == ParsedValueType.int ? TrackerValueType.integer : TrackerValueType.double),
+      unit: Value(remote.unit),
+      direction: Value(remote.goalDirection == ParsedGoalDirection.up ? TrackerDirection.increasing : TrackerDirection.decreasing),
+      updatedAt: Value(remote.updatedAt),
+    ));
+
+    await tagsDao.detachAllFromTracker(remote.id);
+    for (final tagName in remote.tags) {
+      final tagId = await _getOrCreateTag(tagName);
+      await tagsDao.attachToTracker(remote.id, tagId);
+    }
+
+    final existingLogs = await dao.getLogsForTracker(remote.id);
+    for (final l in existingLogs) {
+      await dao.deleteLog(l.id);
+    }
+
+    for (final l in remote.logs) {
+      await dao.addLog(TrackerLogsCompanion(
+        id: Value(remote.id + l.loggedAt.millisecondsSinceEpoch.toString()),
+        trackerId: Value(remote.id),
+        loggedAt: Value(l.loggedAt),
+        value: Value(l.value),
+      ));
+    }
+  }
+
+  Future<String> _getOrCreateTag(String name) async {
+    final existing = await (tagsDao.select(tagsDao.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+
+    final id = name.toLowerCase().replaceAll(' ', '_');
+    await tagsDao.upsert(TagsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(DateTime.now()),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return id;
   }
 }
 
 class RemindersSyncAdapter implements SyncableRemindersSource {
-  // final RemindersDao dao;
-  // RemindersSyncAdapter(this.dao);
+  final RemindersDao dao;
+  RemindersSyncAdapter(this.dao);
 
   @override
   Future<List<String>> timesForTask(String taskId) async {
-    throw UnimplementedError('Wire up to RemindersDao');
+    final rems = await dao.getForTask(taskId);
+    return rems.map((r) => _formatTime(r.remindAt)).toList();
   }
 
   @override
   Future<List<String>> timesForTracker(String trackerId) async {
-    throw UnimplementedError('Wire up to RemindersDao');
+    final rems = await dao.getForTracker(trackerId);
+    return rems.map((r) => _formatTime(r.remindAt)).toList();
   }
 
   @override
   Future<List<String>> timesForTodo(String todoId) async {
-    throw UnimplementedError('Wire up to RemindersDao');
+    final rems = await dao.getForTodo(todoId);
+    return rems.map((r) => _formatTime(r.remindAt)).toList();
   }
 
   @override
   Future<void> replaceTimesForTask(String taskId, List<String> times) async {
-    // await dao.deleteAllForTask(taskId);
-    // for (final t in times) {
-    //   await dao.insert(RemindersCompanion.insert(
-    //     taskId: Value(taskId),
-    //     time: t,
-    //   ));
-    // }
-    throw UnimplementedError('Wire up to RemindersDao');
+    await dao.deleteAllForTask(taskId);
+    for (final t in times) {
+      final time = _parseTime(t);
+      await dao.upsert(RemindersCompanion(
+        id: Value(taskId + t),
+        taskId: Value(taskId),
+        remindAt: Value(time),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        isActive: const Value(true),
+        isSent: const Value(false),
+      ));
+    }
   }
 
   @override
   Future<void> replaceTimesForTracker(
       String trackerId, List<String> times) async {
-    throw UnimplementedError('Wire up to RemindersDao');
+    final existing = await dao.getForTracker(trackerId);
+    for (final e in existing) {
+      await dao.softDelete(e.id);
+    }
+    for (final t in times) {
+      final time = _parseTime(t);
+      await dao.upsert(RemindersCompanion(
+        id: Value(trackerId + t),
+        trackerId: Value(trackerId),
+        remindAt: Value(time),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        isActive: const Value(true),
+        isSent: const Value(false),
+      ));
+    }
   }
 
   @override
   Future<void> replaceTimesForTodo(String todoId, List<String> times) async {
-    throw UnimplementedError('Wire up to RemindersDao');
+    final existing = await dao.getForTodo(todoId);
+    for (final e in existing) {
+      await dao.softDelete(e.id);
+    }
+    for (final t in times) {
+      final time = _parseTime(t);
+      await dao.upsert(RemindersCompanion(
+        id: Value(todoId + t),
+        todoId: Value(todoId),
+        remindAt: Value(time),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+        isActive: const Value(true),
+        isSent: const Value(false),
+      ));
+    }
   }
 }
 
@@ -237,12 +404,73 @@ class RemindersSyncAdapter implements SyncableRemindersSource {
 
 final syncSourcesProvider = Provider<SyncSources>((ref) {
   return SyncSources(
-    todos: TodosSyncAdapter(/* ref.watch(todosDaoProvider) */),
-    tasks: TasksSyncAdapter(/* ref.watch(tasksDaoProvider) */),
-    trackers: TrackersSyncAdapter(/* ref.watch(trackersDaoProvider) */),
-    reminders: RemindersSyncAdapter(/* ref.watch(remindersDaoProvider) */),
+    todos: TodosSyncAdapter(
+      ref.watch(todosDaoProvider),
+      ref.watch(tagsDaoProvider),
+    ),
+    tasks: TasksSyncAdapter(
+      ref.watch(tasksDaoProvider),
+      ref.watch(tagsDaoProvider),
+      ref.watch(remindersDaoProvider),
+    ),
+    trackers: TrackersSyncAdapter(
+      ref.watch(trackersDaoProvider),
+      ref.watch(tagsDaoProvider),
+      ref.watch(remindersDaoProvider),
+    ),
+    reminders: RemindersSyncAdapter(ref.watch(remindersDaoProvider)),
   );
 });
+
+// ---------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------
+
+ParsedPriority _toParsedPriority(int? p) {
+  if (p == null) return ParsedPriority.normal;
+  if (p <= 1) return ParsedPriority.low;
+  if (p >= 3) return ParsedPriority.high;
+  return ParsedPriority.normal;
+}
+
+int _fromParsedPriority(ParsedPriority p) {
+  return switch (p) {
+    ParsedPriority.low => 1,
+    ParsedPriority.normal => 2,
+    ParsedPriority.high => 3,
+  };
+}
+
+ParsedLogStatus _toParsedTaskLogStatus(TaskLogStatus s) {
+  return switch (s) {
+    TaskLogStatus.done => ParsedLogStatus.done,
+    TaskLogStatus.notDone => ParsedLogStatus.notDone,
+    TaskLogStatus.skipped => ParsedLogStatus.skipped,
+  };
+}
+
+TaskLogStatus _fromParsedTaskLogStatus(ParsedLogStatus s) {
+  return switch (s) {
+    ParsedLogStatus.done => TaskLogStatus.done,
+    ParsedLogStatus.notDone => TaskLogStatus.notDone,
+    ParsedLogStatus.skipped => TaskLogStatus.skipped,
+  };
+}
+
+String _formatTime(DateTime d) =>
+    '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+DateTime _parseTime(String t) {
+  final parts = t.split(':');
+  final now = DateTime.now();
+  return DateTime(
+    now.year,
+    now.month,
+    now.day,
+    int.parse(parts[0]),
+    int.parse(parts[1]),
+  );
+}
 
 final syncEngineProvider = Provider<SyncTransport>((ref) {
   final settings = ref.watch(syncSettingsProvider);
@@ -263,11 +491,12 @@ final syncEngineProvider = Provider<SyncTransport>((ref) {
     client: client,
     sources: ref.watch(syncSourcesProvider),
     onProgress: (step) {
-      // Wire to a simple status string provider if you want a
-      // "Syncing: pushing tasks..." indicator in the UI.
+      ref.read(syncProgressProvider.notifier).state = step;
     },
   );
 });
+
+final syncProgressProvider = StateProvider<String?>((ref) => null);
 
 enum SyncStatus { idle, syncing, error }
 
@@ -282,18 +511,30 @@ class SyncController extends StateNotifier<SyncState> {
   SyncController(this._ref) : super(const SyncState());
 
   Future<void> syncNow() async {
+    if (state.status == SyncStatus.syncing) return;
+
     state = const SyncState(status: SyncStatus.syncing);
     try {
       final engine = _ref.read(syncEngineProvider);
-      // Pull first so local edits made since the last sync always win
-      // on conflict (their updated_at will be newer than anything
-      // just pulled), then push so the remote reflects local state.
+      
+      if (kDebugMode) print('Starting WebDAV Sync: Pulling...');
       await engine.pull();
+      
+      if (kDebugMode) print('WebDAV Sync: Pushing...');
       await engine.push();
+      
       await _ref.read(syncSettingsProvider.notifier).markSynced();
+      
+      if (kDebugMode) print('WebDAV Sync: Completed successfully');
       state = const SyncState(status: SyncStatus.idle);
-    } catch (e) {
+      _ref.read(syncProgressProvider.notifier).state = null;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('WebDAV Sync Error: $e');
+        print(stack);
+      }
       state = SyncState(status: SyncStatus.error, errorMessage: e.toString());
+      _ref.read(syncProgressProvider.notifier).state = null;
     }
   }
 }

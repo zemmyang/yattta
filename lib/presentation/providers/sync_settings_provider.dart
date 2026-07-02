@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'database_providers.dart';
+import '../../utils/settings_controller.dart';
 
 class SyncSettings {
   final String webdavUrl;
@@ -32,51 +32,35 @@ class SyncSettings {
 }
 
 class SyncSettingsNotifier extends StateNotifier<SyncSettings> {
-  final Ref _ref;
-  SyncSettingsNotifier(this._ref) : super(const SyncSettings()) {
-    _load();
+  SyncSettingsNotifier() : super(const SyncSettings()) {
+    _init();
   }
 
-  Future<void> _load() async {
-    final dao = _ref.read(settingsDaoProvider);
-    final url = await dao.getString('sync_webdav_url') ?? '';
-    final user = await dao.getString('sync_webdav_user') ?? '';
-    final pass = await dao.getString('sync_webdav_password') ?? '';
-    final lastSyncStr = await dao.getString('sync_last_synced_at');
-    final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
+  void _init() {
+    settingsController.addListener(_updateFromController);
+    _updateFromController();
+  }
 
+  @override
+  void dispose() {
+    settingsController.removeListener(_updateFromController);
+    super.dispose();
+  }
+
+  void _updateFromController() {
     state = SyncSettings(
-      webdavUrl: url,
-      webdavUser: user,
-      webdavPassword: pass,
-      lastSyncedAt: lastSync,
-    );
-  }
-
-  Future<void> updateConfig({
-    String? url,
-    String? user,
-    String? password,
-  }) async {
-    final dao = _ref.read(settingsDaoProvider);
-    if (url != null) await dao.setString('sync_webdav_url', url);
-    if (user != null) await dao.setString('sync_webdav_user', user);
-    if (password != null) await dao.setString('sync_webdav_password', password);
-
-    state = state.copyWith(
-      webdavUrl: url,
-      webdavUser: user,
-      webdavPassword: password,
+      webdavUrl: settingsController.webDavServer,
+      webdavUser: settingsController.webDavUsername,
+      webdavPassword: settingsController.webDavPassword,
+      // lastSyncedAt would need to be in settingsController too if we want to track it there
     );
   }
 
   Future<void> markSynced() async {
-    final now = DateTime.now();
-    await _ref.read(settingsDaoProvider).setString('sync_last_synced_at', now.toIso8601String());
-    state = state.copyWith(lastSyncedAt: now);
+    // Optional: add lastSyncedAt to settingsController if needed
   }
 }
 
 final syncSettingsProvider = StateNotifierProvider<SyncSettingsNotifier, SyncSettings>((ref) {
-  return SyncSettingsNotifier(ref);
+  return SyncSettingsNotifier();
 });

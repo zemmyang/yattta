@@ -8,6 +8,7 @@ import 'package:yattta/utils/settings_controller.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
+import 'package:yattta/domain/sync/parsed_models.dart';
 
 class AddTodoPage extends ConsumerStatefulWidget {
   final Todo? todo;
@@ -26,6 +27,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   final _breakDurationController = TextEditingController();
   final _selectedTagIds = <String>{};
   DateTime? _selectedDueDate;
+  ParsedPriority _selectedPriority = ParsedPriority.normal;
 
   @override
   void initState() {
@@ -36,10 +38,26 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
       _workDurationController.text = widget.todo!.workDuration?.toString() ?? '';
       _breakDurationController.text = widget.todo!.breakDuration?.toString() ?? '';
       _selectedDueDate = widget.todo!.dueAt;
+      _selectedPriority = _toParsedPriority(widget.todo!.priority);
       if (widget.initialTags != null) {
         _selectedTagIds.addAll(widget.initialTags!.map((t) => t.id));
       }
     }
+  }
+
+  ParsedPriority _toParsedPriority(int? p) {
+    if (p == null) return ParsedPriority.normal;
+    if (p <= 1) return ParsedPriority.low;
+    if (p >= 3) return ParsedPriority.high;
+    return ParsedPriority.normal;
+  }
+
+  int _fromParsedPriority(ParsedPriority p) {
+    return switch (p) {
+      ParsedPriority.low => 1,
+      ParsedPriority.normal => 2,
+      ParsedPriority.high => 3,
+    };
   }
 
   @override
@@ -65,6 +83,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
       notes: drift.Value(_notesController.text.trim()),
       status: drift.Value(widget.todo?.status ?? TodoStatus.pending),
       dueAt: drift.Value(_selectedDueDate),
+      priority: drift.Value(_fromParsedPriority(_selectedPriority)),
       workDuration: drift.Value(int.tryParse(_workDurationController.text)),
       breakDuration: drift.Value(int.tryParse(_breakDurationController.text)),
       createdAt: drift.Value(widget.todo?.createdAt ?? DateTime.now()),
@@ -226,6 +245,50 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
                 ],
               ),
             ],
+            const SizedBox(height: 24),
+            Text(
+              'Priority',
+              style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            FTabs(
+              control: FTabControl.managed(
+                initial: _selectedPriority.index,
+                onChange: (index) {
+                  setState(() {
+                    _selectedPriority = ParsedPriority.values[index];
+                  });
+                },
+              ),
+              children: [
+                FTabEntry(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FLucideIcons.chevronDown, size: 16, color: Colors.blue[300]),
+                      const SizedBox(width: 4),
+                      const Text('Low'),
+                    ],
+                  ),
+                  child: const SizedBox.shrink(),
+                ),
+                const FTabEntry(
+                  label: Text('Normal'),
+                  child: SizedBox.shrink(),
+                ),
+                FTabEntry(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FLucideIcons.chevronUp, size: 16, color: Colors.red[300]),
+                      const SizedBox(width: 4),
+                      const Text('High'),
+                    ],
+                  ),
+                  child: const SizedBox.shrink(),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

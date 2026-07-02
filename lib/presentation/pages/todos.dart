@@ -371,7 +371,15 @@ class _MainState extends ConsumerState<Main> {
                                               child: GestureDetector(
                                                 behavior: HitTestBehavior.opaque,
                                                 onTap: () => setState(() => _focusedTodo = item.todo),
-                                                child: Text(item.todo.title),
+                                                child: Row(
+                                                  children: [
+                                                    if (item.todo.priority != null && item.todo.priority != 2) ...[
+                                                      _PriorityBadge(priority: item.todo.priority!),
+                                                      const SizedBox(width: 8),
+                                                    ],
+                                                    Expanded(child: Text(item.todo.title)),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                             StreamBuilder<int>(
@@ -528,11 +536,24 @@ class _MainState extends ConsumerState<Main> {
                                               child: GestureDetector(
                                                 behavior: HitTestBehavior.opaque,
                                                 onTap: () => setState(() => _focusedTodo = item.todo),
-                                                child: Text(
-                                                  item.todo.title,
-                                                  style: const TextStyle(
-                                                    decoration: TextDecoration.lineThrough,
-                                                  ),
+                                                child: Row(
+                                                  children: [
+                                                    if (item.todo.priority != null && item.todo.priority != 2) ...[
+                                                      _PriorityBadge(
+                                                        priority: item.todo.priority!,
+                                                        isDone: true,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                    ],
+                                                    Expanded(
+                                                      child: Text(
+                                                        item.todo.title,
+                                                        style: const TextStyle(
+                                                          decoration: TextDecoration.lineThrough,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ),
@@ -712,5 +733,43 @@ class _MainState extends ConsumerState<Main> {
       createdAt: drift.Value(DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
     ));
+  }
+}
+
+class _PriorityBadge extends StatelessWidget {
+  final int priority;
+  final bool isDone;
+
+  const _PriorityBadge({required this.priority, this.isDone = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (priority) {
+      1 => Colors.blue[300], // Low
+      3 => Colors.red[300],  // High
+      _ => null,
+    };
+
+    if (color == null) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDone ? color.withOpacity(0.3) : color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isDone ? color.withOpacity(0.5) : color,
+          width: 1,
+        ),
+      ),
+      child: Text(
+        priority == 1 ? 'LOW' : 'HIGH',
+        style: FTheme.of(context).typography.body.xs.copyWith(
+              color: isDone ? color.withOpacity(0.7) : color,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+      ),
+    );
   }
 }

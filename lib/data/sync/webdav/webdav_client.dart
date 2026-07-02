@@ -63,8 +63,14 @@ class YatttaWebDavClient {
       if (!exists) {
         await _client.createDirectory(path);
       }
+    } on WebDAVNotFoundException {
+      await _client.createDirectory(path);
     } catch (e) {
-      throw YatttaWebDavException('Failed to ensure directory $path', e);
+      if (e.toString().contains('404')) {
+        await _client.createDirectory(path);
+      } else {
+        throw YatttaWebDavException('Failed to ensure directory $path', e);
+      }
     }
   }
 
@@ -93,6 +99,9 @@ class YatttaWebDavClient {
     } on WebDAVNotFoundException {
       return null;
     } catch (e) {
+      if (e.toString().contains('404')) {
+        return null;
+      }
       throw YatttaWebDavException('Failed to read $path', e);
     }
   }
@@ -104,6 +113,9 @@ class YatttaWebDavClient {
     } on WebDAVNotFoundException {
       return [];
     } catch (e) {
+      if (e.toString().contains('404')) {
+        return [];
+      }
       throw YatttaWebDavException('Failed to list $path', e);
     }
   }
@@ -119,7 +131,12 @@ class YatttaWebDavClient {
   Future<bool> exists(String path) async {
     try {
       return await _client.exists(path);
+    } on WebDAVNotFoundException {
+      return false;
     } catch (e) {
+      if (e.toString().contains('404')) {
+        return false;
+      }
       throw YatttaWebDavException('Failed to check existence of $path', e);
     }
   }

@@ -12,7 +12,7 @@ import 'yaml_write_utils.dart';
 
 class TodoFileSerializer {
   static final RegExp _lineRe =
-  RegExp(r'^- \[( |x)\] (.+?) `([a-f0-9]{8})`\s*$', multiLine: true);
+  RegExp(r'^- \[( |x)\] (?:\((H|L)\) )?(.+?) `([a-f0-9]{8})`\s*$', multiLine: true);
 
   static String serialize(List<ParsedTodo> todos) {
     final buf = StringBuffer();
@@ -36,7 +36,12 @@ class TodoFileSerializer {
     for (final t in todos) {
       final check = t.completed ? 'x' : ' ';
       final shortId = t.id.substring(0, 8);
-      buf.writeln('- [$check] ${escapeMd(t.title)} `$shortId`');
+      final priorityLabel = switch (t.priority) {
+        ParsedPriority.high => '(H) ',
+        ParsedPriority.low => '(L) ',
+        ParsedPriority.normal => '',
+      };
+      buf.writeln('- [$check] $priorityLabel${escapeMd(t.title)} `$shortId`');
     }
     buf.writeln();
 
@@ -64,18 +69,24 @@ class TodoFileSerializer {
     final result = <ParsedTodo>[];
 
     for (final m in _lineRe.allMatches(body)) {
-      final shortId = m.group(3)!;
+      final shortId = m.group(4)!;
       final meta = metaByShortId[shortId];
       if (meta == null) continue; // orphaned line with no frontmatter entry
 
+      final labelPriority = switch (m.group(2)) {
+        'H' => ParsedPriority.high,
+        'L' => ParsedPriority.low,
+        _ => null,
+      };
+
       result.add(ParsedTodo(
         id: meta['id'] as String,
-        title: m.group(2)!.trim(),
+        title: m.group(3)!.trim(),
         completed: m.group(1) == 'x',
         dueAt: meta['due'] != null
             ? DateTime.tryParse(meta['due'].toString())
             : null,
-        priority: _parsePriority(meta['priority']?.toString()),
+        priority: labelPriority ?? _parsePriority(meta['priority']?.toString()),
         tags: meta['tags'] != null
             ? List<String>.from(meta['tags'] as YamlList)
             : const [],
