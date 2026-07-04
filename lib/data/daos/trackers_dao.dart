@@ -73,13 +73,15 @@ class TrackersDao extends DatabaseAccessor<AppDatabase>
         l.loggedAt.isBetweenValues(from, to)))
           .watch();
 
-  Future<void> upsert(TrackersCompanion entry) =>
-      into(trackers).insertOnConflictUpdate(
-        entry.copyWith(updatedAt: Value(DateTime.now())),
-      );
+  Future<void> upsert(TrackersCompanion entry) {
+    final toInsert = entry.updatedAt.present
+        ? entry
+        : entry.copyWith(updatedAt: Value(DateTime.now()));
+    return into(trackers).insertOnConflictUpdate(toInsert);
+  }
 
   Future<void> addLog(TrackerLogsCompanion entry) =>
-      into(trackerLogs).insert(entry);
+      into(trackerLogs).insertOnConflictUpdate(entry);
 
   Future<void> updateLog(TrackerLogsCompanion entry) =>
       (update(trackerLogs)..where((l) => l.id.equals(entry.id.value)))

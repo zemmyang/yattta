@@ -20,8 +20,8 @@ class ParsedTodo {
     required this.title,
     required this.completed,
     required this.priority,
-    required this.tags,
     required this.updatedAt,
+    this.tags = const [],
     this.dueAt,
   });
 }
@@ -56,10 +56,10 @@ class ParsedTask {
     required this.id,
     required this.title,
     required this.displayOrder,
-    required this.tags,
     required this.reminders,
     required this.updatedAt,
     required this.logs,
+    this.tags = const [],
     this.recurrence,
   });
 }
@@ -94,9 +94,39 @@ class ParsedTracker {
     required this.valueType,
     required this.unit,
     required this.goalDirection,
-    required this.tags,
     required this.reminders,
     required this.updatedAt,
     required this.logs,
+    this.tags = const [],
+  });
+}
+
+class ParsedBrainDump {
+  final String id;
+  final String note;
+  final bool isReviewed;
+  final List<String> tags;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  ParsedBrainDump({
+    required this.id,
+    required this.note,
+    required this.isReviewed,
+    required this.createdAt,
+    required this.updatedAt,
+    this.tags = const [],
+  });
+}
+
+class ParsedSetting {
+  final String key;
+  final String value;
+  final DateTime updatedAt;
+
+  ParsedSetting({
+    required this.key,
+    required this.value,
+    required this.updatedAt,
   });
 }

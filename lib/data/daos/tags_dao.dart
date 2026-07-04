@@ -5,7 +5,7 @@ import '../tables/junction_tables.dart';
 
 part 'tags_dao.g.dart';
 
-@DriftAccessor(tables: [Tags, TodoTags, TaskTags, TrackerTags])
+@DriftAccessor(tables: [Tags, TodoTags, TaskTags, TrackerTags, BrainDumpTags])
 class TagsDao extends DatabaseAccessor<AppDatabase>
     with _$TagsDaoMixin {
   TagsDao(super.db);
@@ -44,6 +44,14 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
     return query.map((row) => row.readTable(tags)).get();
   }
 
+  Future<List<Tag>> getTagsForBrainDump(String brainDumpId) {
+    final query = select(tags).join([
+      innerJoin(brainDumpTags, brainDumpTags.tagId.equalsExp(tags.id)),
+    ])..where(brainDumpTags.brainDumpId.equals(brainDumpId));
+
+    return query.map((row) => row.readTable(tags)).get();
+  }
+
   Future<void> upsert(TagsCompanion entry) =>
       into(tags).insertOnConflictUpdate(
         entry.copyWith(updatedAt: Value(DateTime.now())),
@@ -64,6 +72,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
         TrackerTagsCompanion.insert(trackerId: trackerId, tagId: tagId),
       );
 
+  Future<void> attachToBrainDump(String brainDumpId, String tagId) =>
+      into(brainDumpTags).insertOnConflictUpdate(
+        BrainDumpTagsCompanion.insert(brainDumpId: brainDumpId, tagId: tagId),
+      );
+
   Future<void> detachAllFromTodo(String todoId) =>
       (delete(todoTags)..where((t) => t.todoId.equals(todoId))).go();
 
@@ -72,6 +85,9 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> detachAllFromTracker(String trackerId) =>
       (delete(trackerTags)..where((t) => t.trackerId.equals(trackerId))).go();
+
+  Future<void> detachAllFromBrainDump(String brainDumpId) =>
+      (delete(brainDumpTags)..where((t) => t.brainDumpId.equals(brainDumpId))).go();
 
   Future<void> detachFromTodo(String todoId, String tagId) =>
       (delete(todoTags)

@@ -294,7 +294,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Tags',
+                  'Tags (Optional)',
                   style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(

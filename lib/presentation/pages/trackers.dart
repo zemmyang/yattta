@@ -136,25 +136,50 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
     final isInteger = widget.item.tracker.valueType == TrackerValueType.integer;
 
     return FTile(
-      title: Text(widget.item.tracker.title),
-      subtitle: widget.item.tags.isEmpty && widget.item.tracker.unit == null
-          ? null
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.item.tracker.unit != null) Text('Unit: ${widget.item.tracker.unit}'),
-                if (widget.item.tags.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: widget.item.tags
-                        .map((tag) => TagBadge(tag: tag))
-                        .toList(),
-                  ),
-                ],
-              ],
+      title: Row(
+        children: [
+          Expanded(child: Text(widget.item.tracker.title)),
+          if (widget.item.tracker.unit != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                '(${widget.item.tracker.unit})',
+                style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+              ),
             ),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FTextField(
+                  hint: isInteger ? '0' : '0.0',
+                  keyboardType: isInteger ? TextInputType.number : const TextInputType.numberWithOptions(decimal: true),
+                  control: FTextFieldControl.managed(controller: _valueController),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FButton.icon(
+                variant: FButtonVariant.outline,
+                onPress: _logValue,
+                child: const Icon(FLucideIcons.check),
+              ),
+            ],
+          ),
+          if (widget.item.tags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: widget.item.tags.map((tag) => TagBadge(tag: tag)).toList(),
+            ),
+          ],
+        ],
+      ),
       prefix: ReorderableDragStartListener(
         index: widget.index,
         child: const Padding(
@@ -170,24 +195,16 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
       suffix: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 80,
-            child: FTextField(
-              hint: isInteger ? '0' : '0.0',
-              keyboardType: isInteger ? TextInputType.number : const TextInputType.numberWithOptions(decimal: true),
-              control: FTextFieldControl.managed(controller: _valueController),
-            ),
-          ),
-          const SizedBox(width: 8),
-          FButton.icon(
-            variant: FButtonVariant.outline,
-            onPress: _logValue,
-            child: const Icon(FLucideIcons.check),
-          ),
-          const SizedBox(width: 8),
           FButton.icon(
             variant: FButtonVariant.ghost,
-            onPress: () => _deleteTracker(context, ref, widget.item.tracker),
+            size: FButtonSizeVariant.sm,
+            onPress: _editTracker,
+            child: const Icon(FLucideIcons.pencil),
+          ),
+          FButton.icon(
+            variant: FButtonVariant.ghost,
+            size: FButtonSizeVariant.sm,
+            onPress: _deleteTracker,
             child: const Icon(FLucideIcons.trash),
           ),
         ],
@@ -195,7 +212,24 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
     );
   }
 
-  void _deleteTracker(BuildContext context, WidgetRef ref, Tracker tracker) async {
+  void _editTracker() async {
+    final remindersDao = ref.read(remindersDaoProvider);
+    final reminders = await remindersDao.getForTracker(widget.item.tracker.id);
+
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AddTrackerPage(
+            tracker: widget.item.tracker,
+            initialReminders: reminders,
+            initialTags: widget.item.tags,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _deleteTracker() async {
     final confirm = await showFDialog<bool>(
       context: context,
       builder: (context, style, animation) => FDialog(
@@ -217,7 +251,7 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
     );
 
     if (confirm == true) {
-      await ref.read(trackersDaoProvider).softDelete(tracker.id);
+      await ref.read(trackersDaoProvider).softDelete(widget.item.tracker.id);
     }
   }
 }

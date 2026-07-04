@@ -46,6 +46,7 @@ part 'app_database.g.dart';
     TodoTags,
     TaskTags,
     TrackerTags,
+    BrainDumpTags,
     Settings,
     BrainDumps,
   ],
@@ -63,9 +64,10 @@ part 'app_database.g.dart';
 
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
+  AppDatabase.forTesting(DatabaseConnection super.connection);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   // Migrations go here as schemaVersion grows
   @override
@@ -79,6 +81,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.createTable(brainDumps);
+      }
+      if (from < 4) {
+        await m.createTable(brainDumpTags);
       }
     },
   );

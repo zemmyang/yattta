@@ -49,7 +49,8 @@ class TodoFileSerializer {
   }
 
   static List<ParsedTodo> parse(String content) {
-    final parts = content.split('---\n');
+    final delimiter = RegExp(r'^---\s*$', multiLine: true);
+    final parts = content.split(delimiter);
     if (parts.length < 3) return [];
 
     final yamlDoc = loadYaml(parts[1]);

@@ -3,6 +3,7 @@ import 'todos_table.dart';
 import 'tasks_table.dart';
 import 'trackers_table.dart';
 import 'tags_table.dart';
+import 'brain_dumps_table.dart';
 
 class TodoTags extends Table {
   TextColumn get todoId => text().references(Todos, #id)();
@@ -26,4 +27,12 @@ class TrackerTags extends Table {
 
   @override
   Set<Column> get primaryKey => {trackerId, tagId};
+}
+
+class BrainDumpTags extends Table {
+  TextColumn get brainDumpId => text().references(BrainDumps, #id)();
+  TextColumn get tagId       => text().references(Tags,       #id)();
+
+  @override
+  Set<Column> get primaryKey => {brainDumpId, tagId};
 }

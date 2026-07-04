@@ -70,10 +70,12 @@ class TasksDao extends DatabaseAccessor<AppDatabase>
         l.triggeredAt.isBetweenValues(from, to)))
           .watch();
 
-  Future<void> upsert(TasksCompanion entry) =>
-      into(tasks).insertOnConflictUpdate(
-        entry.copyWith(updatedAt: Value(DateTime.now())),
-      );
+  Future<void> upsert(TasksCompanion entry) {
+    final toInsert = entry.updatedAt.present
+        ? entry
+        : entry.copyWith(updatedAt: Value(DateTime.now()));
+    return into(tasks).insertOnConflictUpdate(toInsert);
+  }
 
   Future<void> logOccurrence(TaskLogsCompanion entry) =>
       into(taskLogs).insertOnConflictUpdate(entry);

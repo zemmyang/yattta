@@ -42,34 +42,40 @@ class BrainDumpsPage extends ConsumerWidget {
             separatorBuilder: (context, index) => const Divider(),
             itemBuilder: (context, index) {
               final note = notes[index];
-              return FTile(
-                title: Text(
-                  note.note,
-                  style: note.isReviewed
-                      ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
-                      : null,
-                ),
-                subtitle: Text(
-                  'Saved at: ${note.createdAt.year}-${note.createdAt.month.toString().padLeft(2, '0')}-${note.createdAt.day.toString().padLeft(2, '0')} ${note.createdAt.hour.toString().padLeft(2, '0')}:${note.createdAt.minute.toString().padLeft(2, '0')}',
-                  style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
-                ),
-                suffix: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!note.isReviewed)
+              return GestureDetector(
+                onTap: () => showBrainDumpDialog(context, ref, existingNote: note),
+                behavior: HitTestBehavior.opaque,
+                child: FTile(
+                  title: Text(
+                    note.note,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: note.isReviewed
+                        ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
+                        : null,
+                  ),
+                  subtitle: Text(
+                    'Saved at: ${note.createdAt.year}-${note.createdAt.month.toString().padLeft(2, '0')}-${note.createdAt.day.toString().padLeft(2, '0')} ${note.createdAt.hour.toString().padLeft(2, '0')}:${note.createdAt.minute.toString().padLeft(2, '0')}',
+                    style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                  ),
+                  suffix: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!note.isReviewed)
+                        FButton.icon(
+                          variant: FButtonVariant.ghost,
+                          size: FButtonSizeVariant.sm,
+                          onPress: () => brainDumpsDao.markAsReviewed(note.id),
+                          child: const Icon(FLucideIcons.check),
+                        ),
                       FButton.icon(
                         variant: FButtonVariant.ghost,
                         size: FButtonSizeVariant.sm,
-                        onPress: () => brainDumpsDao.markAsReviewed(note.id),
-                        child: const Icon(FLucideIcons.check),
+                        onPress: () => _deleteBrainDump(context, ref, note.id),
+                        child: const Icon(FLucideIcons.trash),
                       ),
-                    FButton.icon(
-                      variant: FButtonVariant.ghost,
-                      size: FButtonSizeVariant.sm,
-                      onPress: () => _deleteBrainDump(context, ref, note.id),
-                      child: const Icon(FLucideIcons.trash),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },

@@ -15,6 +15,8 @@ import '../../data/daos/tasks_dao.dart';
 import '../../data/daos/trackers_dao.dart';
 import '../../data/daos/reminders_dao.dart';
 import '../../data/daos/tags_dao.dart';
+import '../../data/daos/brain_dumps_dao.dart';
+import '../../data/daos/settings_dao.dart';
 import '../../data/converters/enum_converters.dart';
 import 'database_providers.dart';
 
@@ -23,6 +25,7 @@ import '../../domain/sync/sync_transport.dart';
 import '../../data/sync/webdav/webdav_client.dart';
 import '../../data/sync/webdav/webdav_sync_engine.dart';
 import '../../domain/sync/synced_dao_contacts.dart';
+import '../../domain/models/recurrence_rule.dart';
 import 'sync_settings_provider.dart';
 
 // ---------------------------------------------------------------------
@@ -165,11 +168,28 @@ class TasksSyncAdapter implements SyncableTasksSource {
 
   @override
   Future<void> upsertFromRemote(ParsedTask remote) async {
+    // Parse recurrence string back to RecurrenceRule object
+    // If parsing fails or is null, default to 'none'
+    RecurrenceRule rrule = const RecurrenceRule(frequency: 'none');
+    if (remote.recurrence != null && remote.recurrence != 'None') {
+      // The serializer currently stores toString() which is not easily reversible
+      // but the domain model expects frequency. For now, let's try to infer it.
+      final lower = remote.recurrence!.toLowerCase();
+      if (lower.contains('daily')) {
+        rrule = const RecurrenceRule(frequency: 'daily');
+      } else if (lower.contains('weekly')) {
+        rrule = const RecurrenceRule(frequency: 'weekly');
+      } else if (lower.contains('monthly')) {
+        rrule = const RecurrenceRule(frequency: 'monthly');
+      }
+    }
+
     await dao.upsert(TasksCompanion(
       id: Value(remote.id),
       title: Value(remote.title),
       position: Value(remote.displayOrder),
       updatedAt: Value(remote.updatedAt),
+      recurrenceRule: Value(rrule),
     ));
 
     await tagsDao.detachAllFromTask(remote.id);
@@ -317,6 +337,130 @@ class TrackersSyncAdapter implements SyncableTrackersSource {
   }
 }
 
+class BrainDumpsSyncAdapter implements SyncableBrainDumpsSource {
+  final BrainDumpsDao dao;
+  final TagsDao tagsDao;
+  BrainDumpsSyncAdapter(this.dao, this.tagsDao);
+
+  @override
+  Future<List<ParsedBrainDump>> findAllForPush() async {
+    final rows = await (dao.select(dao.brainDumps)..where((t) => t.deletedAt.isNull())).get();
+    final result = <ParsedBrainDump>[];
+    for (final r in rows) {
+      final tags = await tagsDao.getTagsForBrainDump(r.id);
+      result.add(ParsedBrainDump(
+        id: r.id,
+        note: r.note,
+        isReviewed: r.isReviewed,
+        tags: tags.map((t) => t.name).toList(),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      ));
+    }
+    return result;
+  }
+
+  @override
+  Future<ParsedBrainDump?> findById(String id) async {
+    final r = await (dao.select(dao.brainDumps)..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
+    if (r == null) return null;
+    final tags = await tagsDao.getTagsForBrainDump(r.id);
+    return ParsedBrainDump(
+      id: r.id,
+      note: r.note,
+      isReviewed: r.isReviewed,
+      tags: tags.map((t) => t.name).toList(),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
+  @override
+  Future<void> upsertFromRemote(ParsedBrainDump remote) async {
+    // If row exists, update it. If not, insert it.
+    final existing = await (dao.select(dao.brainDumps)..where((t) => t.id.equals(remote.id))).getSingleOrNull();
+    if (existing != null) {
+      await dao.updateBrainDump(remote.id, BrainDumpsCompanion(
+        note: Value(remote.note),
+        isReviewed: Value(remote.isReviewed),
+        updatedAt: Value(remote.updatedAt),
+        deletedAt: const Value(null),
+      ));
+    } else {
+      await dao.insertBrainDump(BrainDumpsCompanion.insert(
+        id: remote.id,
+        note: remote.note,
+        isReviewed: Value(remote.isReviewed),
+        createdAt: Value(remote.createdAt),
+        updatedAt: Value(remote.updatedAt),
+      ));
+    }
+
+    await tagsDao.detachAllFromBrainDump(remote.id);
+    for (final tagName in remote.tags) {
+      final tagId = await _getOrCreateTag(tagName);
+      await tagsDao.attachToBrainDump(remote.id, tagId);
+    }
+  }
+
+  Future<String> _getOrCreateTag(String name) async {
+    final existing = await (tagsDao.select(tagsDao.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+
+    final id = name.toLowerCase().replaceAll(' ', '_');
+    await tagsDao.upsert(TagsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(DateTime.now()),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return id;
+  }
+}
+
+class SettingsSyncAdapter implements SyncableSettingsSource {
+  final SettingsDao dao;
+  SettingsSyncAdapter(this.dao);
+
+  @override
+  Future<List<ParsedSetting>> findAllForPush() async {
+    final rows = await dao.select(dao.settings).get();
+    return rows.map((r) => ParsedSetting(
+      key: r.key,
+      value: r.value,
+      updatedAt: r.updatedAt,
+    )).toList();
+  }
+
+  @override
+  Future<ParsedSetting?> findByKey(String key) async {
+    final r = await (dao.select(dao.settings)..where((t) => t.key.equals(key))).getSingleOrNull();
+    if (r == null) return null;
+    return ParsedSetting(
+      key: r.key,
+      value: r.value,
+      updatedAt: r.updatedAt,
+    );
+  }
+
+  @override
+  Future<void> upsertFromRemote(ParsedSetting remote) async {
+    // Skip WebDAV credentials to avoid circular dependency and security risks
+    if (remote.key.startsWith('webDav')) return;
+    
+    await dao.setString(remote.key, remote.value);
+    // dao.setString sets updatedAt to now, so we need a way to set it to remote.updatedAt if we want strict last-write-wins
+    // Let's modify SettingsDao to accept an optional updatedAt or just use insertOnConflictUpdate directly here.
+    await (dao.into(dao.settings).insertOnConflictUpdate(
+      SettingsCompanion(
+        key: Value(remote.key),
+        value: Value(remote.value),
+        updatedAt: Value(remote.updatedAt),
+      ),
+    ));
+  }
+}
+
 class RemindersSyncAdapter implements SyncableRemindersSource {
   final RemindersDao dao;
   RemindersSyncAdapter(this.dao);
@@ -419,6 +563,11 @@ final syncSourcesProvider = Provider<SyncSources>((ref) {
       ref.watch(remindersDaoProvider),
     ),
     reminders: RemindersSyncAdapter(ref.watch(remindersDaoProvider)),
+    brainDumps: BrainDumpsSyncAdapter(
+      ref.watch(brainDumpsDaoProvider),
+      ref.watch(tagsDaoProvider),
+    ),
+    settings: SettingsSyncAdapter(ref.watch(settingsDaoProvider)),
   );
 });
 
@@ -517,6 +666,11 @@ class SyncController extends StateNotifier<SyncState> {
     try {
       final engine = _ref.read(syncEngineProvider);
       
+      if (engine is WebDavSyncEngine) {
+        if (kDebugMode) print('WebDAV Sync: Checking server availability...');
+        await engine.client.ping();
+      }
+
       if (kDebugMode) print('Starting WebDAV Sync: Pulling...');
       await engine.pull();
       
@@ -533,7 +687,13 @@ class SyncController extends StateNotifier<SyncState> {
         print('WebDAV Sync Error: $e');
         print(stack);
       }
-      state = SyncState(status: SyncStatus.error, errorMessage: e.toString());
+
+      String msg = e.toString();
+      if (e is YatttaWebDavException) {
+        msg = e.friendlyMessage;
+      }
+
+      state = SyncState(status: SyncStatus.error, errorMessage: msg);
       _ref.read(syncProgressProvider.notifier).state = null;
     }
   }

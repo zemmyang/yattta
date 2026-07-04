@@ -56,7 +56,8 @@ class TaskFileSerializer {
   }
 
   static ParsedTask parse(String content) {
-    final parts = content.split('---\n');
+    final delimiter = RegExp(r'^---\s*$', multiLine: true);
+    final parts = content.split(delimiter);
     if (parts.length < 3) {
       throw FormatException('Task file missing frontmatter delimiters');
     }

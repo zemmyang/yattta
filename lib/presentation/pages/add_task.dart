@@ -230,7 +230,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Tags',
+                  'Tags (Optional)',
                   style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(

@@ -55,9 +55,12 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
           .get();
 
   // Upsert with updated_at stamp
-  Future<void> upsert(TodosCompanion entry) => into(todos).insertOnConflictUpdate(
-    entry.copyWith(updatedAt: Value(DateTime.now())),
-  );
+  Future<void> upsert(TodosCompanion entry) {
+    final toInsert = entry.updatedAt.present
+        ? entry
+        : entry.copyWith(updatedAt: Value(DateTime.now()));
+    return into(todos).insertOnConflictUpdate(toInsert);
+  }
 
   // Soft delete
   Future<void> softDelete(String id) =>

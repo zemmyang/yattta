@@ -6,6 +6,7 @@ import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:drift/drift.dart' as drift;
+import 'add_tracker.dart';
 
 class TrackerDetailsPage extends ConsumerWidget {
   final Tracker tracker;
@@ -21,6 +22,29 @@ class TrackerDetailsPage extends ConsumerWidget {
         title: Text(tracker.title),
         prefixes: [
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: const Icon(FLucideIcons.pencil),
+            onPress: () async {
+              final remindersDao = ref.read(remindersDaoProvider);
+              final tagsDao = ref.read(tagsDaoProvider);
+              final reminders = await remindersDao.getForTracker(tracker.id);
+              final tags = await tagsDao.getTagsForTracker(tracker.id);
+
+              if (context.mounted) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => AddTrackerPage(
+                      tracker: tracker,
+                      initialReminders: reminders,
+                      initialTags: tags,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
         ],
       ),
       child: StreamBuilder<List<TrackerLog>>(

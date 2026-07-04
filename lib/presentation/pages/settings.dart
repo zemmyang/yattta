@@ -6,6 +6,7 @@ import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/utils/db_export.dart';
+import 'package:yattta/utils/seed_data.dart';
 import 'package:yattta/presentation/providers/sync_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -372,6 +373,40 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             break;
                         }
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    FButton(
+                      variant: FButtonVariant.outline,
+                      child: const Text('Seed Dummy Data'),
+                      onPress: () => showFDialog(
+                        context: context,
+                        builder: (context, style, animation) => FDialog(
+                          animation: animation,
+                          title: const Text('Seed Dummy Data'),
+                          body: const Text('This will populate your database with dummy todos, tasks, and trackers. It will not delete existing data. Continue?'),
+                          actions: [
+                            FButton(
+                              child: const Text('Seed Data'),
+                              onPress: () async {
+                                final navigator = Navigator.of(context);
+                                await DataSeeder(db).seed();
+                                if (context.mounted) {
+                                  navigator.pop();
+                                  showFToast(
+                                    context: context,
+                                    title: const Text('Data Seeded Successfully'),
+                                  );
+                                }
+                              },
+                            ),
+                            FButton(
+                              variant: FButtonVariant.outline,
+                              child: const Text('Cancel'),
+                              onPress: () => Navigator.of(context).pop(),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     FButton(

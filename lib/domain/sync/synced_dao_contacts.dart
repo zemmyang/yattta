@@ -60,18 +60,36 @@ abstract class SyncableRemindersSource {
   Future<void> replaceTimesForTodo(String todoId, List<String> times);
 }
 
-/// Bundles all four sources so the engine takes one object instead of
-/// four constructor params.
+/// What the sync engine needs from the brain_dumps table.
+abstract class SyncableBrainDumpsSource {
+  Future<List<ParsedBrainDump>> findAllForPush();
+  Future<ParsedBrainDump?> findById(String id);
+  Future<void> upsertFromRemote(ParsedBrainDump remote);
+}
+
+/// What the sync engine needs from the settings table.
+abstract class SyncableSettingsSource {
+  Future<List<ParsedSetting>> findAllForPush();
+  Future<ParsedSetting?> findByKey(String key);
+  Future<void> upsertFromRemote(ParsedSetting remote);
+}
+
+/// Bundles all sources so the engine takes one object instead of
+/// many constructor params.
 class SyncSources {
   final SyncableTodosSource todos;
   final SyncableTasksSource tasks;
   final SyncableTrackersSource trackers;
   final SyncableRemindersSource reminders;
+  final SyncableBrainDumpsSource brainDumps;
+  final SyncableSettingsSource settings;
 
   SyncSources({
     required this.todos,
     required this.tasks,
     required this.trackers,
     required this.reminders,
+    required this.brainDumps,
+    required this.settings,
   });
 }

@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/sync/webdav/webdav_client.dart';
 import '../providers/sync_provider.dart';
 import '../providers/sync_settings_provider.dart';
 import '../../utils/settings_controller.dart';
@@ -23,6 +24,9 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
   late final TextEditingController _urlController;
   late final TextEditingController _userController;
   late final TextEditingController _passwordController;
+  bool _isTesting = false;
+  String? _testResult;
+  bool _testSuccess = false;
 
   @override
   void initState() {
@@ -47,6 +51,47 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     settingsController.setWebDavPassword(_passwordController.text);
   }
 
+  Future<void> _testConnection() async {
+    setState(() {
+      _isTesting = true;
+      _testResult = 'Testing connection...';
+      _testSuccess = false;
+    });
+
+    try {
+      // Temporarily create a client to test
+      final client = YatttaWebDavClient(
+        url: _urlController.text.trim(),
+        username: _userController.text.trim(),
+        password: _passwordController.text,
+      );
+      
+      await client.ping();
+      client.dispose();
+
+      if (mounted) {
+        setState(() {
+          _isTesting = false;
+          _testResult = 'Connection successful!';
+          _testSuccess = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        String msg = e.toString();
+        if (e is YatttaWebDavException) {
+          msg = e.friendlyMessage;
+        }
+
+        setState(() {
+          _isTesting = false;
+          _testResult = 'Connection failed: $msg';
+          _testSuccess = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(syncSettingsProvider);
@@ -69,7 +114,34 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
         const Text('Password / App password'),
         TextField(controller: _passwordController, obscureText: true),
         const SizedBox(height: 16),
-        ElevatedButton(onPressed: _save, child: const Text('Save')),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _save, 
+                child: const Text('Save'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _isTesting ? null : _testConnection,
+                child: Text(_isTesting ? 'Testing...' : 'Test Connection'),
+              ),
+            ),
+          ],
+        ),
+        if (_testResult != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              _testResult!,
+              style: TextStyle(
+                color: _testSuccess ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         const SizedBox(height: 24),
         if (settings.isConfigured) ...[
           if (settings.lastSyncedAt != null)

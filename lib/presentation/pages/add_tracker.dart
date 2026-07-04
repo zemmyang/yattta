@@ -8,9 +8,19 @@ import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/reminder_dialogs.dart';
+import 'package:yattta/domain/models/recurrence_rule.dart';
 
 class AddTrackerPage extends ConsumerStatefulWidget {
-  const AddTrackerPage({super.key});
+  final Tracker? tracker;
+  final List<Reminder>? initialReminders;
+  final List<Tag>? initialTags;
+
+  const AddTrackerPage({
+    super.key,
+    this.tracker,
+    this.initialReminders,
+    this.initialTags,
+  });
 
   @override
   ConsumerState<AddTrackerPage> createState() => _AddTrackerPageState();
@@ -23,6 +33,28 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
   TrackerDirection _direction = TrackerDirection.increasing;
   final _selectedTagIds = <String>{};
   final List<ReminderData> _reminders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.tracker != null) {
+      _titleController.text = widget.tracker!.title;
+      _unitController.text = widget.tracker!.unit ?? '';
+      _valueType = widget.tracker!.valueType;
+      _direction = widget.tracker!.direction;
+
+      if (widget.initialReminders != null) {
+        _reminders.addAll(widget.initialReminders!.map((r) => ReminderData(
+              remindAt: r.remindAt,
+              recurrenceRule: r.recurrenceRule ?? const RecurrenceRule(frequency: 'none'),
+            )));
+      }
+
+      if (widget.initialTags != null) {
+        _selectedTagIds.addAll(widget.initialTags!.map((t) => t.id));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -46,7 +78,7 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
       return;
     }
 
-    final trackerId = const Uuid().v4();
+    final trackerId = widget.tracker?.id ?? const Uuid().v4();
     final trackersDao = ref.read(trackersDaoProvider);
     final tagsDao = ref.read(tagsDaoProvider);
     final remindersDao = ref.read(remindersDaoProvider);
@@ -57,9 +89,14 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
       unit: drift.Value(_unitController.text.trim().isEmpty ? null : _unitController.text.trim()),
       valueType: drift.Value(_valueType),
       direction: drift.Value(_direction),
-      createdAt: drift.Value(DateTime.now()),
+      createdAt: drift.Value(widget.tracker?.createdAt ?? DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
     ));
+
+    if (widget.tracker != null) {
+      await tagsDao.detachAllFromTracker(trackerId);
+      await remindersDao.deleteAllForTracker(trackerId);
+    }
 
     for (final tagId in _selectedTagIds) {
       await tagsDao.attachToTracker(trackerId, tagId);
@@ -84,13 +121,51 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
     }
   }
 
+  void _deleteTracker() async {
+    if (widget.tracker == null) return;
+
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Delete Tracker'),
+        body: const Text('Are you sure you want to delete this tracker? This will move it to the recycle bin.'),
+        actions: [
+          FButton(
+            onPress: () => Navigator.of(context).pop(false),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            variant: FButtonVariant.destructive,
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await ref.read(trackersDaoProvider).softDelete(widget.tracker!.id);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FScaffold(
       header: FHeader.nested(
-        title: const Text('Add Tracker'),
+        title: Text(widget.tracker == null ? 'Add Tracker' : 'Edit Tracker'),
         prefixes: [
           FHeaderAction.x(onPress: () => Navigator.of(context).pop()),
+        ],
+        suffixes: [
+          if (widget.tracker != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.trash),
+              onPress: _deleteTracker,
+            ),
         ],
       ),
       child: SingleChildScrollView(
@@ -210,7 +285,7 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Tags',
+                  'Tags (Optional)',
                   style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
                 ),
                 FButton.icon(
@@ -269,7 +344,7 @@ class _AddTrackerPageState extends ConsumerState<AddTrackerPage> {
               width: double.infinity,
               child: FButton(
                 onPress: _saveTracker,
-                child: const Text('Save Tracker'),
+                child: Text(widget.tracker == null ? 'Save Tracker' : 'Update Tracker'),
               ),
             ),
           ],
