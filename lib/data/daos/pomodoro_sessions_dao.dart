@@ -30,6 +30,20 @@ class PomodoroSessionsDao extends DatabaseAccessor<AppDatabase>
       ..where((s) => s.status.equals(PomodoroStatus.completed.index));
     return query.watch().map((list) => list.length);
   }
+
+  Stream<List<PomodoroSession>> watchSessionsForTodo(String todoId) {
+    return (select(pomodoroSessions)
+          ..where((s) => s.todoId.equals(todoId))
+          ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
+        .watch();
+  }
+
+  Stream<List<PomodoroSession>> watchSessionsForTask(String taskId) {
+    return (select(pomodoroSessions)
+          ..where((s) => s.taskId.equals(taskId))
+          ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
+        .watch();
+  }
   
   Future<List<PomodoroSession>> getSessionsForTodo(String todoId) =>
       (select(pomodoroSessions)

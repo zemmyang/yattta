@@ -13,6 +13,7 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_todo.dart';
 import 'package:yattta/presentation/pages/brain_dump_dialogs.dart';
+import 'package:yattta/presentation/pages/todo_details.dart';
 
 class TodosPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -365,21 +366,26 @@ class _MainState extends ConsumerState<Main> {
                                       ),
                                       child: FTile(
                                         selected: isFocused,
+                                        onPress: () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) => TodoDetailsPage(
+                                              todo: item.todo,
+                                              tags: item.tags,
+                                              onFocus: (t) => setState(() => _focusedTodo = t),
+                                            ),
+                                          ),
+                                        ),
                                         title: Row(
                                           children: [
                                             Expanded(
-                                              child: GestureDetector(
-                                                behavior: HitTestBehavior.opaque,
-                                                onTap: () => setState(() => _focusedTodo = item.todo),
-                                                child: Row(
-                                                  children: [
-                                                    if (item.todo.priority != null && item.todo.priority != 2) ...[
-                                                      _PriorityBadge(priority: item.todo.priority!),
-                                                      const SizedBox(width: 8),
-                                                    ],
-                                                    Expanded(child: Text(item.todo.title)),
+                                              child: Row(
+                                                children: [
+                                                  if (item.todo.priority != null && item.todo.priority != 2) ...[
+                                                    PriorityBadge(priority: item.todo.priority!),
+                                                    const SizedBox(width: 8),
                                                   ],
-                                                ),
+                                                  Expanded(child: Text(item.todo.title)),
+                                                ],
                                               ),
                                             ),
                                             StreamBuilder<int>(
@@ -401,19 +407,9 @@ class _MainState extends ConsumerState<Main> {
                                         subtitle: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                                child: Text(
-                                                  item.todo.notes!,
-                                                  style: FTheme.of(context).typography.body.sm.copyWith(
-                                                        color: FTheme.of(context).colors.mutedForeground,
-                                                      ),
-                                                ),
-                                              ),
                                             if (item.todo.dueAt != null)
                                               Padding(
-                                                padding: const EdgeInsets.only(bottom: 4),
+                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
                                                 child: Row(
                                                   children: [
                                                     Icon(
@@ -436,12 +432,15 @@ class _MainState extends ConsumerState<Main> {
                                                 ),
                                               ),
                                             if (item.tags.isNotEmpty)
-                                              Wrap(
-                                                spacing: 4,
-                                                runSpacing: 4,
-                                                children: item.tags
-                                                    .map((tag) => TagBadge(tag: tag))
-                                                .toList(),
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4),
+                                                child: Wrap(
+                                                  spacing: 4,
+                                                  runSpacing: 4,
+                                                  children: item.tags
+                                                      .map((tag) => TagBadge(tag: tag))
+                                                  .toList(),
+                                                ),
                                               ),
                                           ],
                                         ),
@@ -471,6 +470,15 @@ class _MainState extends ConsumerState<Main> {
                                             FButton.icon(
                                               variant: FButtonVariant.ghost,
                                               size: FButtonSizeVariant.sm,
+                                              onPress: () => setState(() => _focusedTodo = item.todo),
+                                              child: Icon(
+                                                FLucideIcons.target,
+                                                color: isFocused ? FTheme.of(context).colors.primary : null,
+                                              ),
+                                            ),
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
                                               onPress: () => Navigator.of(context).push(
                                                 MaterialPageRoute(
                                                   builder: (context) => AddTodoPage(
@@ -480,12 +488,6 @@ class _MainState extends ConsumerState<Main> {
                                                 ),
                                               ),
                                               child: const Icon(FLucideIcons.pencil),
-                                            ),
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => _deleteTodo(context, ref, item.todo),
-                                              child: const Icon(FLucideIcons.trash),
                                             ),
                                           ],
                                         ),
@@ -530,31 +532,36 @@ class _MainState extends ConsumerState<Main> {
                                       ),
                                       child: FTile(
                                         selected: isFocused,
+                                        onPress: () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) => TodoDetailsPage(
+                                              todo: item.todo,
+                                              tags: item.tags,
+                                              onFocus: (t) => setState(() => _focusedTodo = t),
+                                            ),
+                                          ),
+                                        ),
                                         title: Row(
                                           children: [
                                             Expanded(
-                                              child: GestureDetector(
-                                                behavior: HitTestBehavior.opaque,
-                                                onTap: () => setState(() => _focusedTodo = item.todo),
-                                                child: Row(
-                                                  children: [
-                                                    if (item.todo.priority != null && item.todo.priority != 2) ...[
-                                                      _PriorityBadge(
-                                                        priority: item.todo.priority!,
-                                                        isDone: true,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                    ],
-                                                    Expanded(
-                                                      child: Text(
-                                                        item.todo.title,
-                                                        style: const TextStyle(
-                                                          decoration: TextDecoration.lineThrough,
-                                                        ),
+                                              child: Row(
+                                                children: [
+                                                  if (item.todo.priority != null && item.todo.priority != 2) ...[
+                                                    PriorityBadge(
+                                                      priority: item.todo.priority!,
+                                                      isDone: true,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                  ],
+                                                  Expanded(
+                                                    child: Text(
+                                                      item.todo.title,
+                                                      style: const TextStyle(
+                                                        decoration: TextDecoration.lineThrough,
                                                       ),
                                                     ),
-                                                  ],
-                                                ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             StreamBuilder<int>(
@@ -576,20 +583,9 @@ class _MainState extends ConsumerState<Main> {
                                         subtitle: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            if (item.todo.notes != null && item.todo.notes!.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                                child: Text(
-                                                  item.todo.notes!,
-                                                  style: FTheme.of(context).typography.body.sm.copyWith(
-                                                        color: FTheme.of(context).colors.mutedForeground,
-                                                        decoration: TextDecoration.lineThrough,
-                                                      ),
-                                                ),
-                                              ),
                                             if (item.todo.dueAt != null)
                                               Padding(
-                                                padding: const EdgeInsets.only(bottom: 4),
+                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
                                                 child: Row(
                                                   children: [
                                                     Icon(
@@ -609,15 +605,18 @@ class _MainState extends ConsumerState<Main> {
                                                 ),
                                               ),
                                             if (item.tags.isNotEmpty)
-                                              Wrap(
-                                                spacing: 4,
-                                                runSpacing: 4,
-                                                children: item.tags
-                                                    .map((tag) => TagBadge(
-                                                          tag: tag,
-                                                          variant: FBadgeVariant.outline,
-                                                        ))
-                                                    .toList(),
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4),
+                                                child: Wrap(
+                                                  spacing: 4,
+                                                  runSpacing: 4,
+                                                  children: item.tags
+                                                      .map((tag) => TagBadge(
+                                                            tag: tag,
+                                                            variant: FBadgeVariant.outline,
+                                                          ))
+                                                      .toList(),
+                                                ),
                                               ),
                                           ],
                                         ),
@@ -647,6 +646,15 @@ class _MainState extends ConsumerState<Main> {
                                             FButton.icon(
                                               variant: FButtonVariant.ghost,
                                               size: FButtonSizeVariant.sm,
+                                              onPress: () => setState(() => _focusedTodo = item.todo),
+                                              child: Icon(
+                                                FLucideIcons.target,
+                                                color: isFocused ? FTheme.of(context).colors.primary : null,
+                                              ),
+                                            ),
+                                            FButton.icon(
+                                              variant: FButtonVariant.ghost,
+                                              size: FButtonSizeVariant.sm,
                                               onPress: () => Navigator.of(context).push(
                                                 MaterialPageRoute(
                                                   builder: (context) => AddTodoPage(
@@ -656,12 +664,6 @@ class _MainState extends ConsumerState<Main> {
                                                 ),
                                               ),
                                               child: const Icon(FLucideIcons.pencil),
-                                            ),
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => _deleteTodo(context, ref, item.todo),
-                                              child: const Icon(FLucideIcons.trash),
                                             ),
                                           ],
                                         ),
@@ -695,32 +697,6 @@ class _MainState extends ConsumerState<Main> {
         ));
   }
 
-  void _deleteTodo(BuildContext context, WidgetRef ref, Todo todo) async {
-    final confirm = await showFDialog<bool>(
-      context: context,
-      builder: (context, style, animation) => FDialog(
-        title: const Text('Delete Todo'),
-        body: const Text('Are you sure you want to move this todo to the recycle bin?'),
-        actions: [
-          FButton(
-            onPress: () => Navigator.of(context).pop(false),
-            variant: FButtonVariant.ghost,
-            child: const Text('Cancel'),
-          ),
-          FButton(
-            onPress: () => Navigator.of(context).pop(true),
-            variant: FButtonVariant.destructive,
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await ref.read(todosDaoProvider).softDelete(todo.id);
-    }
-  }
-
   void _savePomodoroSession() async {
     final dao = ref.read(pomodoroSessionsDaoProvider);
     await dao.insertSession(PomodoroSessionsCompanion.insert(
@@ -736,11 +712,11 @@ class _MainState extends ConsumerState<Main> {
   }
 }
 
-class _PriorityBadge extends StatelessWidget {
+class PriorityBadge extends StatelessWidget {
   final int priority;
   final bool isDone;
 
-  const _PriorityBadge({required this.priority, this.isDone = false});
+  const PriorityBadge({required this.priority, this.isDone = false, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -755,17 +731,17 @@ class _PriorityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: isDone ? color.withOpacity(0.3) : color.withOpacity(0.2),
+        color: isDone ? color.withValues(alpha: 0.3) : color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: isDone ? color.withOpacity(0.5) : color,
+          color: isDone ? color.withValues(alpha: 0.5) : color,
           width: 1,
         ),
       ),
       child: Text(
         priority == 1 ? 'LOW' : 'HIGH',
         style: FTheme.of(context).typography.body.xs.copyWith(
-              color: isDone ? color.withOpacity(0.7) : color,
+              color: isDone ? color.withValues(alpha: 0.7) : color,
               fontWeight: FontWeight.bold,
               fontSize: 10,
             ),

@@ -82,6 +82,18 @@ class TrackerDetailsPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (tracker.notes != null && tracker.notes!.isNotEmpty) ...[
+                Text(
+                  'Notes',
+                  style: FTheme.of(context).typography.body.sm.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: FTheme.of(context).colors.mutedForeground,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(tracker.notes!),
+                const SizedBox(height: 24),
+              ],
               SizedBox(
                 height: 300,
                 child: Padding(

@@ -7,6 +7,8 @@ import 'package:yattta/presentation/pages/add_task.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
+import 'package:yattta/presentation/pages/task_details.dart';
+import 'package:yattta/presentation/pages/tag_dialogs.dart';
 
 class TasksPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -144,6 +146,19 @@ class TasksPage extends ConsumerWidget {
 
     return FTile(
       key: ValueKey(task.id),
+      onPress: () async {
+        final tags = await ref.read(tagsDaoProvider).getTagsForTask(task.id);
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => TaskDetailsPage(
+                task: task,
+                tags: tags,
+              ),
+            ),
+          );
+        }
+      },
       title: Row(
         children: [
           Expanded(
@@ -171,9 +186,21 @@ class TasksPage extends ConsumerWidget {
           ),
         ],
       ),
-      subtitle: log?.notes != null && log!.notes!.isNotEmpty 
-        ? Text(log.notes!, maxLines: 1, overflow: TextOverflow.ellipsis) 
-        : (task.notes != null ? Text(task.notes!) : null),
+      subtitle: FutureBuilder<List<Tag>>(
+        future: ref.read(tagsDaoProvider).getTagsForTask(task.id),
+        builder: (context, snapshot) {
+          final tags = snapshot.data ?? [];
+          if (tags.isEmpty) return const SizedBox();
+          return Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: tags.map((tag) => TagBadge(tag: tag)).toList(),
+            ),
+          );
+        },
+      ),
       prefix: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -205,14 +232,10 @@ class TasksPage extends ConsumerWidget {
               child: const Icon(FLucideIcons.circleSlash),
             ),
           const SizedBox(width: 4),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _editTask(context, ref, task),
-            child: FButton.icon(
-              variant: FButtonVariant.ghost,
-              onPress: () => _editTask(context, ref, task),
-              child: const Icon(FLucideIcons.pencil),
-            ),
+          FButton.icon(
+            variant: FButtonVariant.ghost,
+            onPress: () => _editTask(context, ref, task),
+            child: const Icon(FLucideIcons.pencil),
           ),
           const SizedBox(width: 4),
           FButton.icon(
