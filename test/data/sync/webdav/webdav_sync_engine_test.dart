@@ -51,10 +51,18 @@ void main() {
       ),
     );
     
-    // Default stubs
+    // Default stubs to prevent engine from stopping early or crashing
     when(client.exists(any, isDirectory: anyNamed('isDirectory'))).thenAnswer((_) async => false);
     when(client.list(any)).thenAnswer((_) async => []);
     when(client.read(any)).thenAnswer((_) async => null);
+    
+    when(todos.findAllForPush()).thenAnswer((_) async => []);
+    when(tasks.findAllForPush()).thenAnswer((_) async => []);
+    when(trackers.findAllForPush()).thenAnswer((_) async => []);
+    when(brainDumps.findAllForPush()).thenAnswer((_) async => []);
+    when(settings.findAllForPush()).thenAnswer((_) async => []);
+    
+    when(todos.findById(any)).thenAnswer((_) async => null);
   });
 
   group('WebDavSyncEngine', () {
@@ -62,12 +70,10 @@ void main() {
       final now = DateTime.now();
       
       when(todos.findAllForPush()).thenAnswer((_) async => [
-        ParsedTodo(id: 't1-12345678', title: 'T1', completed: false, priority: ParsedPriority.normal, updatedAt: now)
+        ParsedTodo(id: '12345678-0001', title: 'T1', completed: false, priority: ParsedPriority.normal, updatedAt: now)
       ]);
-      when(tasks.findAllForPush()).thenAnswer((_) async => []);
-      when(trackers.findAllForPush()).thenAnswer((_) async => []);
       when(brainDumps.findAllForPush()).thenAnswer((_) async => [
-        ParsedBrainDump(id: 'b1-12345678', note: 'B1', isReviewed: false, createdAt: now, updatedAt: now)
+        ParsedBrainDump(id: '12345678-0002', note: 'B1', isReviewed: false, createdAt: now, updatedAt: now)
       ]);
       when(settings.findAllForPush()).thenAnswer((_) async => [
         ParsedSetting(key: 'k1', value: 'v1', updatedAt: now)
@@ -83,15 +89,17 @@ void main() {
 
     test('intelligent write-skipping: should skip push if content is identical', () async {
       final now = DateTime(2023, 10, 27, 10, 0);
-      final todosList = [ParsedTodo(id: 't1-12345678', title: 'Task 1', completed: false, priority: ParsedPriority.normal, updatedAt: now)];
+      final todosList = [ParsedTodo(id: '12345678-0001', title: 'Task 1', completed: false, priority: ParsedPriority.normal, updatedAt: now)];
       final content = TodoFileSerializer.serialize(todosList);
       final bytes = Uint8List.fromList(utf8.encode(content));
 
       when(todos.findAllForPush()).thenAnswer((_) async => todosList);
       
+      // First push calls write
       await engine.push();
       verify(client.write('yattta/todos.md', bytes, ifMatch: null)).called(1);
 
+      // Second push with same content should skip write
       clearInteractions(client);
       await engine.push();
       verifyNever(client.write(any, any, ifMatch: anyNamed('ifMatch')));
@@ -100,66 +108,44 @@ void main() {
     test('conflict detection: should skip push if remote changed since pull', () async {
       final now = DateTime(2023, 10, 27, 10, 0);
       final initialMd = TodoFileSerializer.serialize([
-        ParsedTodo(id: 't1-12345678', title: 'Task 1', completed: false, priority: ParsedPriority.normal, updatedAt: now)
+        ParsedTodo(id: '12345678-0001', title: 'Task 1', completed: false, priority: ParsedPriority.normal, updatedAt: now)
       ]);
       final initialBytes = Uint8List.fromList(utf8.encode(initialMd));
       final initialEtag = 'etag-1';
 
       when(client.exists('yattta', isDirectory: true)).thenAnswer((_) async => true);
-      when(client.read('yattta/todos.md')).thenAnswer((_) async => YatttaReadResult(initialBytes, initialEtag));
+      when(client.read('yattta/todos.md')).thenAnswer((_) async => 
+          YatttaReadResult(initialBytes, initialEtag));
 
       await engine.pull();
       
-      final localChange = [
-        ParsedTodo(id: 't1-12345678', title: 'Task 1 Local', completed: false, priority: ParsedPriority.normal, updatedAt: DateTime.now())
-      ];
-      when(todos.findAllForPush()).thenAnswer((_) async => localChange);
+      when(todos.findAllForPush()).thenAnswer((_) async => [
+        ParsedTodo(id: '12345678-0001', title: 'Local Change', completed: false, priority: ParsedPriority.normal, updatedAt: DateTime.now())
+      ]);
       
       when(client.write(any, any, ifMatch: initialEtag)).thenThrow(
         YatttaWebDavException('Conflict', Exception('HTTP 412 Precondition Failed'))
       );
 
+      // Should handle the conflict internally (last-write-wins usually, but SafeWrite honors the If-Match)
       await engine.push();
       verify(client.write('yattta/todos.md', any, ifMatch: initialEtag)).called(1);
     });
 
     test('pull() should read and upsert from remote files', () async {
       final now = DateTime(2023, 10, 27, 10, 0);
+      // ID must start with 8 hex chars for TodoFileSerializer regex to match!
       final todoMd = TodoFileSerializer.serialize([
-        ParsedTodo(id: 't1-12345', title: 'Remote Task', completed: false, priority: ParsedPriority.normal, updatedAt: now)
+        ParsedTodo(id: 'abcdef12-3456', title: 'Remote Task', completed: false, priority: ParsedPriority.normal, updatedAt: now)
       ]);
       
-      // Use local variables to avoid capture issues
-      final localClient = MockYatttaWebDavClient();
-      final localTodos = MockSyncableTodosSource();
-      final localTasks = MockSyncableTasksSource();
-      final localTrackers = MockSyncableTrackersSource();
-      final localReminders = MockSyncableRemindersSource();
-      final localBrainDumps = MockSyncableBrainDumpsSource();
-      final localSettings = MockSyncableSettingsSource();
+      when(client.exists('yattta', isDirectory: true)).thenAnswer((_) async => true);
+      when(client.read('yattta/todos.md')).thenAnswer((_) async => 
+          YatttaReadResult(Uint8List.fromList(utf8.encode(todoMd)), 'etag-1'));
 
-      final localEngine = WebDavSyncEngine(
-        client: localClient,
-        sources: SyncSources(
-          todos: localTodos,
-          tasks: localTasks,
-          trackers: localTrackers,
-          reminders: localReminders,
-          brainDumps: localBrainDumps,
-          settings: localSettings,
-        ),
-      );
+      await engine.pull();
 
-      when(localClient.exists(any, isDirectory: anyNamed('isDirectory'))).thenAnswer((_) async => true);
-      when(localClient.read(any)).thenAnswer((_) async => null);
-      when(localClient.read('yattta/todos.md')).thenAnswer((_) async => YatttaReadResult(Uint8List.fromList(utf8.encode(todoMd)), 'etag-1'));
-      when(localClient.list(any)).thenAnswer((_) async => []);
-      
-      when(localTodos.findById(any)).thenAnswer((_) async => null);
-
-      await localEngine.pull();
-
-      verify(localTodos.upsertFromRemote(any)).called(1);
+      verify(todos.upsertFromRemote(argThat(predicate((p) => p is ParsedTodo && p.id == 'abcdef12-3456')))).called(1);
     });
   });
 }

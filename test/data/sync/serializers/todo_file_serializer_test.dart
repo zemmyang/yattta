@@ -90,5 +90,44 @@ sync:
 
       expect(result[0].priority, ParsedPriority.high);
     });
+
+    test('should serialize due date with time and seconds', () {
+      final todos = [
+        ParsedTodo(
+          id: '11111111-2222-3333-4444-555555555555',
+          title: 'Due task',
+          completed: false,
+          priority: ParsedPriority.normal,
+          tags: [],
+          updatedAt: now,
+          dueAt: DateTime(2023, 10, 30, 14, 45, 30),
+        ),
+      ];
+
+      final output = TodoFileSerializer.serialize(todos);
+      expect(output, contains('due: "2023-10-30 14:45:30"'));
+    });
+
+    test('should parse due date with and without time', () {
+      const content = '''---
+sync:
+  - id: 11111111-2222-3333-4444-555555555555
+    due: 2023-10-30 14:45:30
+    updated: 2023-10-27T10:00:00.000
+  - id: 22222222-2222-3333-4444-555555555555
+    due: 2023-10-31
+    updated: 2023-10-27T10:00:00.000
+---
+
+# Todos
+
+- [ ] Due task `11111111`
+- [ ] Due date only `22222222`
+''';
+
+      final result = TodoFileSerializer.parse(content);
+      expect(result[0].dueAt, DateTime(2023, 10, 30, 14, 45, 30));
+      expect(result[1].dueAt, DateTime(2023, 10, 31));
+    });
   });
 }

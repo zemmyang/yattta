@@ -9,7 +9,7 @@ import 'yaml_write_utils.dart';
 class TrackerFileSerializer {
   static final RegExp _headingRe = RegExp(r'^#\s+(.+?)\s*$', multiLine: true);
   static final RegExp _rowRe = RegExp(
-    r'^\|\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\s*\|\s*([\d\.]+)\s*\|$',
+    r'^\|\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?)\s*\|\s*([\d\.]+)\s*\|$',
     multiLine: true,
   );
 
@@ -81,5 +81,5 @@ class TrackerFileSerializer {
 
   static String _fmtTime(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}';
 }

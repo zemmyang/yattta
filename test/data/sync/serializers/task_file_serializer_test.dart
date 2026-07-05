@@ -37,8 +37,8 @@ void main() {
       expect(output, contains('tags: [health, daily]'));
       expect(output, contains('reminders: ["08:00"]'));
       expect(output, contains('# Exercise'));
-      expect(output, contains('| 2023-10-26 | ✓ | Morning run |'));
-      expect(output, contains('| 2023-10-25 | skip | (Raining) |'));
+      expect(output, contains('| 2023-10-26 00:00:00 | ✓ | Morning run |'));
+      expect(output, contains('| 2023-10-25 00:00:00 | skip | (Raining) |'));
     });
 
     test('should parse Markdown back to ParsedTask', () {
@@ -56,10 +56,10 @@ updated: 2023-10-27T10:00:00.000
 
 # Exercise
 
-| Date       | Status | Notes |
-|------------|--------|-------|
-| 2023-10-26 | ✓ | Morning run |
-| 2023-10-25 | skip | (Raining) |
+| Date                | Status | Notes |
+|---------------------|--------|-------|
+| 2023-10-26 08:30:00 | ✓ | Morning run |
+| 2023-10-25 00:00:00 | skip | (Raining) |
 ''';
 
       final result = TaskFileSerializer.parse(content);
@@ -72,13 +72,38 @@ updated: 2023-10-27T10:00:00.000
       expect(result.reminders, contains('08:00'));
       expect(result.logs.length, 2);
       
-      expect(result.logs[0].date, DateTime(2023, 10, 26));
+      expect(result.logs[0].date, DateTime(2023, 10, 26, 8, 30));
       expect(result.logs[0].status, ParsedLogStatus.done);
       expect(result.logs[0].note, 'Morning run');
 
       expect(result.logs[1].date, DateTime(2023, 10, 25));
       expect(result.logs[1].status, ParsedLogStatus.skipped);
       expect(result.logs[1].skipReason, 'Raining');
+    });
+
+    test('should parse legacy Markdown (date only) back to ParsedTask', () {
+      const content = '''---
+id: task-1
+order: 1
+recurrence: daily
+tags:
+  - health
+reminders:
+  - "08:00"
+updated: 2023-10-27T10:00:00.000
+---
+
+# Exercise
+
+| Date       | Status | Notes |
+|------------|--------|-------|
+| 2023-10-26 | ✓ | Morning run |
+''';
+
+      final result = TaskFileSerializer.parse(content);
+
+      expect(result.logs.length, 1);
+      expect(result.logs[0].date, DateTime(2023, 10, 26));
     });
   });
 }

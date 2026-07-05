@@ -22,7 +22,7 @@ class TodoFileSerializer {
     for (final t in todos) {
       buf.writeln('  - id: ${t.id}');
       buf.write(yamlMap({
-        if (t.dueAt != null) 'due': _fmtDate(t.dueAt!),
+        if (t.dueAt != null) 'due': _fmtTime(t.dueAt!),
         if (t.priority != ParsedPriority.normal) 'priority': t.priority.name,
         if (t.tags.isNotEmpty) 'tags': t.tags,
         'updated': t.updatedAt,
@@ -109,8 +109,11 @@ class TodoFileSerializer {
     }
   }
 
-  static String _fmtDate(DateTime d) =>
+  static String _fmtTime(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
           '${d.month.toString().padLeft(2, '0')}-'
-          '${d.day.toString().padLeft(2, '0')}';
+          '${d.day.toString().padLeft(2, '0')} '
+          '${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}:'
+          '${d.second.toString().padLeft(2, '0')}';
 }

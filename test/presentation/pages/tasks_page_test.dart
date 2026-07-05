@@ -44,7 +44,6 @@ void main() {
     });
 
     testWidgets('renders tasks in correct groups', (tester) async {
-      // Add a task with no reminders
       await db.tasksDao.upsert(TasksCompanion.insert(
         id: 'task-1',
         title: 'No Reminder Task',
@@ -70,14 +69,12 @@ void main() {
       await tester.pumpWidget(createTasksPage());
       await tester.pumpAndSettle();
 
-      // Find the checkbox and tap it
       final checkbox = find.byType(FCheckbox);
       expect(checkbox, findsOneWidget);
       
       await tester.tap(checkbox);
       await tester.pumpAndSettle();
 
-      // Verify the log was created in DB
       final logs = await db.tasksDao.getLogsForTask('task-1');
       expect(logs, isNotEmpty);
       expect(logs[0].status, TaskLogStatus.done);
@@ -94,77 +91,6 @@ void main() {
       await tester.pumpWidget(createTasksPage());
       await tester.pumpAndSettle();
 
-      // Find skip button (circleSlash icon)
-      final skipButton = find.byIcon(FLucideIcons.circleSlash);
-      expect(skipButton, findsOneWidget);
-
-      await tester.tap(skipButton);
-      await tester.pumpAndSettle();
-
-      final logs = await db.tasksDao.getLogsForTask('task-1');
-      expect(logs, isNotEmpty);
-      expect(logs[0].status, TaskLogStatus.skipped);
-    });
-   group('TasksPage', () {
-    testWidgets('shows empty state when no tasks', (tester) async {
-      await tester.pumpWidget(createTasksPage());
-      await tester.pumpAndSettle();
-
-      expect(find.text('No active tasks. Add one!'), findsOneWidget);
-    });
-
-    testWidgets('renders tasks in correct groups', (tester) async {
-      // Add a task with no reminders
-      await db.tasksDao.upsert(TasksCompanion.insert(
-        id: 'task-1',
-        title: 'No Reminder Task',
-        recurrenceRule: const RecurrenceRule(frequency: 'none'),
-        updatedAt: Value(DateTime.now()),
-      ));
-
-      await tester.pumpWidget(createTasksPage());
-      await tester.pumpAndSettle();
-
-      expect(find.text('No Reminder Task'), findsOneWidget);
-      expect(find.text('No reminders set'), findsOneWidget);
-    });
-
-    testWidgets('can mark task as done', (tester) async {
-      await db.tasksDao.upsert(TasksCompanion.insert(
-        id: 'task-1',
-        title: 'Do This',
-        recurrenceRule: const RecurrenceRule(frequency: 'none'),
-        updatedAt: Value(DateTime.now()),
-      ));
-
-      await tester.pumpWidget(createTasksPage());
-      await tester.pumpAndSettle();
-
-      // Find the checkbox and tap it
-      final checkbox = find.byType(FCheckbox);
-      expect(checkbox, findsOneWidget);
-      
-      await tester.tap(checkbox);
-      await tester.pumpAndSettle();
-
-      // Verify the log was created in DB
-      final logs = await db.tasksDao.getLogsForTask('task-1');
-      expect(logs, isNotEmpty);
-      expect(logs[0].status, TaskLogStatus.done);
-    });
-
-    testWidgets('can skip task', (tester) async {
-      await db.tasksDao.upsert(TasksCompanion.insert(
-        id: 'task-1',
-        title: 'Maybe Not',
-        recurrenceRule: const RecurrenceRule(frequency: 'none'),
-        updatedAt: Value(DateTime.now()),
-      ));
-
-      await tester.pumpWidget(createTasksPage());
-      await tester.pumpAndSettle();
-
-      // Find skip button (circleSlash icon)
       final skipButton = find.byIcon(FLucideIcons.circleSlash);
       expect(skipButton, findsOneWidget);
 
@@ -176,5 +102,4 @@ void main() {
       expect(logs[0].status, TaskLogStatus.skipped);
     });
   });
- });
 }

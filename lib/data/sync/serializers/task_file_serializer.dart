@@ -13,7 +13,7 @@ import 'yaml_write_utils.dart';
 class TaskFileSerializer {
   static final RegExp _headingRe = RegExp(r'^#\s+(.+?)\s*$', multiLine: true);
   static final RegExp _rowRe = RegExp(
-    r'^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(✓|✗|skip)?\s*\|\s*(.*?)\s*\|\s*$',
+    r'^\|\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)\s*\|\s*(✓|✗|skip)?\s*\|\s*(.*?)\s*\|\s*$',
     multiLine: true,
   );
 
@@ -48,7 +48,7 @@ class TaskFileSerializer {
       final note = log.note != null && log.note!.isNotEmpty
           ? escapeMd(log.note!)
           : (log.skipReason != null ? '(${escapeMd(log.skipReason!)})' : '');
-      buf.writeln('| ${_fmtDate(log.date)} | $status | $note |');
+      buf.writeln('| ${_fmtTime(log.date)} | $status | $note |');
     }
     buf.writeln();
 
@@ -110,8 +110,11 @@ class TaskFileSerializer {
     );
   }
 
-  static String _fmtDate(DateTime d) =>
+  static String _fmtTime(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
           '${d.month.toString().padLeft(2, '0')}-'
-          '${d.day.toString().padLeft(2, '0')}';
+          '${d.day.toString().padLeft(2, '0')} '
+          '${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}:'
+          '${d.second.toString().padLeft(2, '0')}';
 }

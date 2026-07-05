@@ -39,8 +39,8 @@ void main() {
       expect(output, contains('tags: [health]'));
       expect(output, contains('reminders: ["07:00"]'));
       expect(output, contains('# Weight'));
-      expect(output, contains('| 2023-10-26 07:30 | 75.5 |'));
-      expect(output, contains('| 2023-10-25 07:45 | 76.2 |'));
+      expect(output, contains('| 2023-10-26 07:30:00 | 75.5 |'));
+      expect(output, contains('| 2023-10-25 07:45:00 | 76.2 |'));
     });
 
     test('should parse Markdown back to ParsedTracker', () {
@@ -59,10 +59,10 @@ updated: 2023-10-27T10:00:00.000
 
 # Weight
 
-| Timestamp        | Value |
-|------------------|-------|
-| 2023-10-26 07:30 | 75.5 |
-| 2023-10-25 07:45 | 76.2 |
+| Timestamp           | Value |
+|---------------------|-------|
+| 2023-10-26 07:30:15 | 75.5 |
+| 2023-10-25 07:45:00 | 76.2 |
 ''';
 
       final result = TrackerFileSerializer.parse(content);
@@ -77,11 +77,38 @@ updated: 2023-10-27T10:00:00.000
       expect(result.reminders, contains('07:00'));
       expect(result.logs.length, 2);
 
-      expect(result.logs[0].loggedAt, DateTime(2023, 10, 26, 7, 30));
+      expect(result.logs[0].loggedAt, DateTime(2023, 10, 26, 7, 30, 15));
       expect(result.logs[0].value, 75.5);
 
       expect(result.logs[1].loggedAt, DateTime(2023, 10, 25, 7, 45));
       expect(result.logs[1].value, 76.2);
+    });
+
+    test('should parse legacy Markdown (no seconds) back to ParsedTracker', () {
+      const content = '''---
+id: tracker-1
+order: 2
+type: float
+unit: kg
+goal: down
+tags:
+  - health
+reminders:
+  - "07:00"
+updated: 2023-10-27T10:00:00.000
+---
+
+# Weight
+
+| Timestamp        | Value |
+|------------------|-------|
+| 2023-10-26 07:30 | 75.5 |
+''';
+
+      final result = TrackerFileSerializer.parse(content);
+
+      expect(result.logs.length, 1);
+      expect(result.logs[0].loggedAt, DateTime(2023, 10, 26, 7, 30));
     });
   });
 }
