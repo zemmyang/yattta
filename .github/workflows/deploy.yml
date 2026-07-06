@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      webdav_server:
+        description: 'WebDAV Server URL'
+        required: false
+      webdav_username:
+        description: 'WebDAV Username'
+        required: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Web
+        run: |
+          flutter build web --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=PRESEED_DATA=true \
+            --dart-define=PRESEED_WEBDAV_ENABLED=false \
+            --dart-define=PRESEED_WEBDAV_SERVER=${{ secrets.PRESEED_WEBDAV_SERVER || github.event.inputs.webdav_server }} \
+            --dart-define=PRESEED_WEBDAV_USERNAME=${{ secrets.PRESEED_WEBDAV_USERNAME || github.event.inputs.webdav_username }} \
+            --dart-define=PRESEED_WEBDAV_PASSWORD=${{ secrets.PRESEED_WEBDAV_PASSWORD }}
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: build/web
+          branch: gh-pages

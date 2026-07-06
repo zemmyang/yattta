@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/database/app_database.dart';
 import '../data/daos/settings_dao.dart';
 
@@ -10,6 +11,8 @@ enum UserMode { focused, standard, powerUser }
 
 class SettingsController extends ChangeNotifier {
   SettingsDao? _dao;
+  final _secureStorage = const FlutterSecureStorage();
+  static const _webDavPasswordKey = 'webDavPassword';
 
   int _timerDuration = 10;
   int _breakDuration = 5;
@@ -25,6 +28,7 @@ class SettingsController extends ChangeNotifier {
   String _webDavServer = '';
   String _webDavUsername = '';
   String _webDavPassword = '';
+  int _syncFrequency = 0; // 0 = manual, otherwise minutes
 
   int get timerDuration => _timerDuration;
   int get breakDuration => _breakDuration;
@@ -40,6 +44,7 @@ class SettingsController extends ChangeNotifier {
   String get webDavServer => _webDavServer;
   String get webDavUsername => _webDavUsername;
   String get webDavPassword => _webDavPassword;
+  int get syncFrequency => _syncFrequency;
 
   Future<void> initialize(AppDatabase db) async {
     _dao = db.settingsDao;
@@ -52,10 +57,24 @@ class SettingsController extends ChangeNotifier {
     _autoStartWork = await _dao!.getBool('autoStartWork') ?? _autoStartWork;
     _startOfWeek = await _dao!.getInt('startOfWeek') ?? _startOfWeek;
     _syncServerAddress = await _dao!.getString('syncServerAddress') ?? _syncServerAddress;
-    _webDavEnabled = await _dao!.getBool('webDavEnabled') ?? _webDavEnabled;
-    _webDavServer = await _dao!.getString('webDavServer') ?? _webDavServer;
-    _webDavUsername = await _dao!.getString('webDavUsername') ?? _webDavUsername;
-    _webDavPassword = await _dao!.getString('webDavPassword') ?? _webDavPassword;
+    _webDavEnabled = await _dao!.getBool('webDavEnabled') ?? const bool.fromEnvironment('PRESEED_WEBDAV_ENABLED', defaultValue: false);
+    _webDavServer = await _dao!.getString('webDavServer') ?? const String.fromEnvironment('PRESEED_WEBDAV_SERVER');
+    _webDavUsername = await _dao!.getString('webDavUsername') ?? const String.fromEnvironment('PRESEED_WEBDAV_USERNAME');
+    _syncFrequency = await _dao!.getInt('syncFrequency') ?? const int.fromEnvironment('PRESEED_WEBDAV_FREQUENCY', defaultValue: 0);
+    
+    // Load password from secure storage
+    _webDavPassword = await _secureStorage.read(key: _webDavPasswordKey) ?? const String.fromEnvironment('PRESEED_WEBDAV_PASSWORD');
+
+    // Migration from SQLite if needed
+    final oldPassword = await _dao!.getString('webDavPassword');
+    if (oldPassword != null && oldPassword.isNotEmpty) {
+      if (_webDavPassword.isEmpty) {
+        _webDavPassword = oldPassword;
+        await _secureStorage.write(key: _webDavPasswordKey, value: _webDavPassword);
+      }
+      // Remove from SQLite after migration (or if it's already in secure storage)
+      await (db.delete(db.settings)..where((t) => t.key.equals('webDavPassword'))).go();
+    }
 
     final initialPageStr = await _dao!.getString('initialPage');
     if (initialPageStr != null) {
@@ -170,12 +189,20 @@ class SettingsController extends ChangeNotifier {
   void setWebDavPassword(String value) {
     if (_webDavPassword == value) return;
     _webDavPassword = value;
-    _dao?.setString('webDavPassword', value);
+    _secureStorage.write(key: _webDavPasswordKey, value: value);
+    notifyListeners();
+  }
+
+  void setSyncFrequency(int minutes) {
+    if (_syncFrequency == minutes) return;
+    _syncFrequency = minutes;
+    _dao?.setInt('syncFrequency', minutes);
     notifyListeners();
   }
 
   Future<void> reset() async {
     await _dao?.deleteAll();
+    await _secureStorage.delete(key: _webDavPasswordKey);
     _timerDuration = 10;
     _breakDuration = 5;
     _longBreakDuration = 15;
@@ -190,6 +217,7 @@ class SettingsController extends ChangeNotifier {
     _webDavServer = '';
     _webDavUsername = '';
     _webDavPassword = '';
+    _syncFrequency = 0;
     notifyListeners();
   }
 }

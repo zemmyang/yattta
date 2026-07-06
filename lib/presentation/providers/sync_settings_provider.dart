@@ -5,12 +5,14 @@ class SyncSettings {
   final String webdavUrl;
   final String webdavUser;
   final String webdavPassword;
+  final int syncFrequency;
   final DateTime? lastSyncedAt;
 
   const SyncSettings({
     this.webdavUrl = '',
     this.webdavUser = '',
     this.webdavPassword = '',
+    this.syncFrequency = 0,
     this.lastSyncedAt,
   });
 
@@ -20,12 +22,14 @@ class SyncSettings {
     String? webdavUrl,
     String? webdavUser,
     String? webdavPassword,
+    int? syncFrequency,
     DateTime? lastSyncedAt,
   }) {
     return SyncSettings(
       webdavUrl: webdavUrl ?? this.webdavUrl,
       webdavUser: webdavUser ?? this.webdavUser,
       webdavPassword: webdavPassword ?? this.webdavPassword,
+      syncFrequency: syncFrequency ?? this.syncFrequency,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
     );
   }
@@ -48,16 +52,16 @@ class SyncSettingsNotifier extends StateNotifier<SyncSettings> {
   }
 
   void _updateFromController() {
-    state = SyncSettings(
+    state = state.copyWith(
       webdavUrl: settingsController.webDavServer,
       webdavUser: settingsController.webDavUsername,
       webdavPassword: settingsController.webDavPassword,
-      // lastSyncedAt would need to be in settingsController too if we want to track it there
+      syncFrequency: settingsController.syncFrequency,
     );
   }
 
   Future<void> markSynced() async {
-    // Optional: add lastSyncedAt to settingsController if needed
+    state = state.copyWith(lastSyncedAt: DateTime.now());
   }
 }
 

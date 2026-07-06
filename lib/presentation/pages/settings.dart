@@ -27,20 +27,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final syncState = ref.watch(syncControllerProvider);
     final isSyncing = syncState.status == SyncStatus.syncing;
 
-    // Success/Error feedback via listeners
-    ref.listen(syncControllerProvider, (previous, next) {
-      if (previous?.status == SyncStatus.syncing && next.status == SyncStatus.idle) {
-        showFToast(context: context, title: const Text('Sync Successful'));
-      } else if (next.status == SyncStatus.error) {
-        showFToast(
-          context: context,
-          title: const Text('Sync Failed'),
-          description: Text(next.errorMessage ?? 'Unknown error'),
-          variant: FToastVariant.destructive,
-        );
-      }
-    });
-
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Settings'),
@@ -312,6 +298,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           control: FTextFieldControl.managed(
                             initial: TextEditingValue(text: settingsController.webDavPassword),
                             onChange: (value) => settingsController.setWebDavPassword(value.text),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FSelect<int>(
+                          label: const Text('Sync Frequency'),
+                          description: const Text('How often to automatically sync your data'),
+                          hint: 'Select frequency',
+                          items: const {
+                            'Manual Only': 0,
+                            'Every 15 minutes': 15,
+                            'Every hour': 60,
+                            'Every 6 hours': 360,
+                            'Every 12 hours': 720,
+                            'Daily': 1440,
+                          },
+                          control: FSelectControl.lifted(
+                            value: settingsController.syncFrequency,
+                            onChange: (value) {
+                              if (value != null) {
+                                settingsController.setSyncFrequency(value);
+                              }
+                            },
                           ),
                         ),
                         const SizedBox(height: 24),

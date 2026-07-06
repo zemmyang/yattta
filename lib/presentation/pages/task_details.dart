@@ -85,18 +85,18 @@ class TaskDetailsPage extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
           ],
-          if (task.recurrenceRule != null) ...[
-             Text(
-              'Recurrence',
-              style: FTheme.of(context).typography.body.sm.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: FTheme.of(context).colors.mutedForeground,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(task.recurrenceRule!.toString()),
-            const SizedBox(height: 24),
-          ],
+          ...[
+           Text(
+            'Recurrence',
+            style: FTheme.of(context).typography.body.sm.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: FTheme.of(context).colors.mutedForeground,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(task.recurrenceRule.toString()),
+          const SizedBox(height: 24),
+        ],
           
           const SizedBox(height: 40),
           Text(

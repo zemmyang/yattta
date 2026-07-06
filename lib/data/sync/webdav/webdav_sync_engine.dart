@@ -99,30 +99,66 @@ class WebDavSyncEngine implements SyncTransport {
   }
 
   // ---------------------------------------------------------------------
-  // Todos — single file
+  // Todos — grouped by priority under /yattta/todos/
   // ---------------------------------------------------------------------
 
   Future<void> _pushTodos() async {
     final todos = await sources.todos.findAllForPush();
-    final content = TodoFileSerializer.serialize(todos);
-    await _safeWrite('yattta/todos.md', _bytes(content));
+
+    // Group by priority
+    final grouped = <ParsedPriority, List<ParsedTodo>>{};
+    for (final t in todos) {
+      grouped.putIfAbsent(t.priority, () => []).add(t);
+    }
+
+    // Write one file per priority
+    for (final priority in ParsedPriority.values) {
+      final list = grouped[priority] ?? [];
+      final content = TodoFileSerializer.serialize(list);
+      final filename = '${priority.name}.md';
+      await _safeWrite('yattta/todos/$filename', _bytes(content));
+    }
   }
 
   Future<void> _pullTodos() async {
-    final result = await client.read('yattta/todos.md');
-    if (result == null) return;
-    
-    _remoteContent['yattta/todos.md'] = result.bytes;
-    if (result.etag != null) {
-      _etags['yattta/todos.md'] = result.etag!;
+    // 1. Pull from the new folder structure
+    final files = await client.list('yattta/todos');
+    final mdFiles = files.where(
+      (f) => !f.isDirectory && f.name.endsWith('.md'),
+    );
+
+    for (final file in mdFiles) {
+      final result = await client.read(file.path);
+      if (result == null) continue;
+
+      _remoteContent[file.path] = result.bytes;
+      if (result.etag != null) {
+        _etags[file.path] = result.etag!;
+      }
+
+      final remoteTodos = TodoFileSerializer.parse(utf8.decode(result.bytes));
+      for (final remote in remoteTodos) {
+        final local = await sources.todos.findById(remote.id);
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await sources.todos.upsertFromRemote(remote);
+        }
+      }
     }
 
-    final remoteTodos = TodoFileSerializer.parse(utf8.decode(result.bytes));
+    // 2. Backward compatibility: pull from legacy single-file format
+    final legacy = await client.read('yattta/todos.md');
+    if (legacy != null) {
+      _remoteContent['yattta/todos.md'] = legacy.bytes;
+      if (legacy.etag != null) {
+        _etags['yattta/todos.md'] = legacy.etag!;
+      }
 
-    for (final remote in remoteTodos) {
-      final local = await sources.todos.findById(remote.id);
-      if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
-        await sources.todos.upsertFromRemote(remote);
+      final remoteTodos = TodoFileSerializer.parse(utf8.decode(legacy.bytes));
+      for (final remote in remoteTodos) {
+        final local = await sources.todos.findById(remote.id);
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await sources.todos.upsertFromRemote(remote);
+        }
       }
     }
   }
@@ -184,8 +220,8 @@ class WebDavSyncEngine implements SyncTransport {
 
   Future<void> _pushTrackers() async {
     final trackers = await sources.trackers.findAllForPush();
-    final sorted = [...trackers]
-      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    // final sorted = [...trackers]
+    //   ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
 
     for (final tracker in trackers) {
       final content = TrackerFileSerializer.serialize(tracker);

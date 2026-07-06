@@ -203,6 +203,7 @@ class YatttaWebDavClient {
   Future<void> ensureYatttaFolders() async {
     try {
       await ensureDirectory('yattta');
+      await ensureDirectory('yattta/todos');
       await ensureDirectory('yattta/tasks');
       await ensureDirectory('yattta/trackers');
       await ensureDirectory('yattta/braindumps');

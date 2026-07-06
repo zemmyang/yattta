@@ -27,6 +27,12 @@ class DataSeeder {
 
     // 5. Brain Dumps
     await _seedBrainDumps(tags);
+
+    // 6. Pomodoro Sessions
+    await _seedPomodoroSessions();
+
+    // 7. Settings
+    await _seedSettings();
   }
 
   Future<List<String>> _seedTags() async {
@@ -36,6 +42,8 @@ class DataSeeder {
       {'name': 'Health', 'color': '#EF4444'}, // Red
       {'name': 'Learning', 'color': '#8B5CF6'}, // Violet
       {'name': 'Urgent', 'color': '#F59E0B'}, // Orange
+      {'name': 'Home', 'color': '#EC4899'}, // Pink
+      {'name': 'Finance', 'color': '#059669'}, // Emerald
     ];
 
     final ids = <String>[];
@@ -66,6 +74,26 @@ class DataSeeder {
     ));
     await db.tagsDao.attachToTodo(t1Id, tagIds[0]); // Work
     await db.tagsDao.attachToTodo(t1Id, tagIds[4]); // Urgent
+
+    // Todo with Pomodoro settings & Reminder
+    final tPomoId = _uuid.v4();
+    await db.todosDao.upsert(TodosCompanion.insert(
+      id: tPomoId,
+      title: 'Implement Auth Service',
+      notes: const Value('Add Firebase Auth integration.'),
+      status: TodoStatus.pending,
+      priority: const Value(1),
+      workDuration: const Value(50),
+      breakDuration: const Value(10),
+      dueAt: Value(now.add(const Duration(hours: 8))),
+    ));
+    await db.tagsDao.attachToTodo(tPomoId, tagIds[0]); // Work
+    await db.remindersDao.upsert(RemindersCompanion.insert(
+      id: _uuid.v4(),
+      todoId: Value(tPomoId),
+      remindAt: now.add(const Duration(hours: 7)),
+      title: const Value('Time to work on Auth Service!'),
+    ));
 
     // Todo with subtasks
     final parentId = _uuid.v4();
@@ -100,6 +128,18 @@ class DataSeeder {
       dueAt: Value(now.add(const Duration(hours: 4))),
     ));
     await db.tagsDao.attachToTodo(t3Id, tagIds[4]); // Urgent
+    await db.tagsDao.attachToTodo(t3Id, tagIds[6]); // Finance
+
+    // Multi-tag Todo
+    final t4Id = _uuid.v4();
+    await db.todosDao.upsert(TodosCompanion.insert(
+      id: t4Id,
+      title: 'Clean the kitchen',
+      status: TodoStatus.pending,
+      priority: const Value(3),
+    ));
+    await db.tagsDao.attachToTodo(t4Id, tagIds[5]); // Home
+    await db.tagsDao.attachToTodo(t4Id, tagIds[1]); // Personal
 
     // Soft deleted Todo
     final tDeletedId = _uuid.v4();
@@ -114,28 +154,36 @@ class DataSeeder {
   Future<void> _seedTasks(List<String> tagIds) async {
     final now = DateTime.now();
 
-    // Daily Habit
+    // Daily Habit: Meditation
     final task1Id = _uuid.v4();
     await db.tasksDao.upsert(TasksCompanion.insert(
       id: task1Id,
       title: 'Morning Meditation',
       notes: const Value('10 minutes of mindfulness.'),
       recurrenceRule: const RecurrenceRule(frequency: 'daily'),
-      nextDueAt: Value(DateTime(now.year, now.month, now.day, 8, 0)),
+      nextDueAt: Value(DateTime(now.year, now.month, now.day, 8, 0).add(const Duration(days: 1))),
     ));
     await db.tagsDao.attachToTask(task1Id, tagIds[2]); // Health
+    
+    // Reminder for meditation
+    await db.remindersDao.upsert(RemindersCompanion.insert(
+      id: _uuid.v4(),
+      taskId: Value(task1Id),
+      remindAt: DateTime(now.year, now.month, now.day, 7, 50).add(const Duration(days: 1)),
+      title: const Value('Prepare for meditation'),
+    ));
 
-    // Seed some logs for the habit
-    for (int i = 1; i <= 5; i++) {
+    // Seed logs for meditation
+    for (int i = 1; i <= 14; i++) {
       await db.tasksDao.logOccurrence(TaskLogsCompanion.insert(
         id: _uuid.v4(),
         taskId: task1Id,
-        status: TaskLogStatus.done,
+        status: i % 7 == 0 ? TaskLogStatus.notDone : TaskLogStatus.done,
         triggeredAt: now.subtract(Duration(days: i)),
       ));
     }
 
-    // Weekly Habit
+    // Weekly Habit: Review
     final task2Id = _uuid.v4();
     await db.tasksDao.upsert(TasksCompanion.insert(
       id: task2Id,
@@ -144,6 +192,16 @@ class DataSeeder {
       nextDueAt: Value(DateTime(now.year, now.month, now.day + (7 - now.weekday))),
     ));
     await db.tagsDao.attachToTask(task2Id, tagIds[0]); // Work
+
+    // Daily Habit: Reading
+    final task3Id = _uuid.v4();
+    await db.tasksDao.upsert(TasksCompanion.insert(
+      id: task3Id,
+      title: 'Read 20 pages',
+      recurrenceRule: const RecurrenceRule(frequency: 'daily'),
+      nextDueAt: Value(DateTime(now.year, now.month, now.day, 21, 0)),
+    ));
+    await db.tagsDao.attachToTask(task3Id, tagIds[3]); // Learning
 
     // Soft deleted Task
     final taskDeletedId = _uuid.v4();
@@ -169,6 +227,15 @@ class DataSeeder {
       valueType: const Value(TrackerValueType.integer),
     ));
     await db.tagsDao.attachToTracker(tracker1Id, tagIds[2]); // Health
+    
+    // Nudge for water
+    await db.remindersDao.upsert(RemindersCompanion.insert(
+      id: _uuid.v4(),
+      trackerId: Value(tracker1Id),
+      remindAt: now.add(const Duration(hours: 2)),
+      title: const Value('Drink some water!'),
+      recurrenceRule: Value(const RecurrenceRule(frequency: 'daily')),
+    ));
 
     // 2. Weight (Double)
     final tracker2Id = _uuid.v4();
@@ -182,6 +249,18 @@ class DataSeeder {
       direction: const Value(TrackerDirection.decreasing),
     ));
     await db.tagsDao.attachToTracker(tracker2Id, tagIds[2]); // Health
+
+    // 3. Pushups (Counter)
+    final tracker3Id = _uuid.v4();
+    await db.trackersDao.upsert(TrackersCompanion.insert(
+      id: tracker3Id,
+      title: 'Pushups',
+      unit: const Value('reps'),
+      goalValue: const Value(50.0),
+      goalType: const Value(GoalType.atLeast),
+      valueType: const Value(TrackerValueType.integer),
+    ));
+    await db.tagsDao.attachToTracker(tracker3Id, tagIds[2]); // Health
 
     // Seed 30 days of logs for charts
     for (int i = 30; i >= 0; i--) {
@@ -199,9 +278,19 @@ class DataSeeder {
       await db.trackersDao.addLog(TrackerLogsCompanion.insert(
         id: _uuid.v4(),
         trackerId: tracker2Id,
-        value: 80.0 - (30 - i) * 0.1 + (_random.nextDouble() - 0.5),
+        value: 80.0 - (30 - i) * 0.15 + (_random.nextDouble() - 0.5),
         loggedAt: date,
       ));
+
+      // Pushups: growing over time
+      if (i % 2 == 0) {
+        await db.trackersDao.addLog(TrackerLogsCompanion.insert(
+          id: _uuid.v4(),
+          trackerId: tracker3Id,
+          value: (10 + (30 - i)).toDouble(),
+          loggedAt: date,
+        ));
+      }
     }
 
     // Soft deleted Tracker
@@ -243,5 +332,45 @@ class DataSeeder {
       note: 'Delete me later.',
       deletedAt: Value(now),
     ));
+  }
+
+  Future<void> _seedPomodoroSessions() async {
+    final now = DateTime.now();
+    
+    // Some successful sessions
+    for (int i = 0; i < 5; i++) {
+      await db.pomodoroSessionsDao.insertSession(PomodoroSessionsCompanion.insert(
+        id: _uuid.v4(),
+        durationSeconds: 1500, // 25 mins
+        startedAt: now.subtract(Duration(hours: 2 * i + 1)),
+        endedAt: Value(now.subtract(Duration(hours: 2 * i + 1)).add(const Duration(minutes: 25))),
+        status: PomodoroStatus.completed,
+      ));
+    }
+
+    // One failed session
+    await db.pomodoroSessionsDao.insertSession(PomodoroSessionsCompanion.insert(
+      id: _uuid.v4(),
+      durationSeconds: 1500,
+      startedAt: now.subtract(const Duration(minutes: 40)),
+      endedAt: Value(now.subtract(const Duration(minutes: 30))),
+      status: PomodoroStatus.abandoned,
+    ));
+  }
+
+  Future<void> _seedSettings() async {
+    final settings = [
+      {'key': 'theme_mode', 'value': 'system'},
+      {'key': 'pomodoro_work_duration', 'value': '25'},
+      {'key': 'pomodoro_break_duration', 'value': '5'},
+      {'key': 'sync_enabled', 'value': 'false'},
+    ];
+
+    for (final s in settings) {
+      await db.settingsDao.setString(
+        s['key']!,
+        s['value']!,
+      );
+    }
   }
 }

@@ -5,6 +5,7 @@
 // SyncController for triggering push/pull from the UI with loading
 // state.
 
+import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -657,7 +658,30 @@ class SyncState {
 
 class SyncController extends StateNotifier<SyncState> {
   final Ref _ref;
-  SyncController(this._ref) : super(const SyncState());
+  Timer? _timer;
+
+  SyncController(this._ref) : super(const SyncState()) {
+    _setupAutoSync();
+  }
+
+  void _setupAutoSync() {
+    _ref.listen(syncSettingsProvider.select((s) => s.syncFrequency), (prev, next) {
+      _startTimer(next);
+    }, fireImmediately: true);
+  }
+
+  void _startTimer(int minutes) {
+    _timer?.cancel();
+    if (minutes <= 0) return;
+
+    _timer = Timer.periodic(Duration(minutes: minutes), (_) => syncNow());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   Future<void> syncNow() async {
     if (state.status == SyncStatus.syncing) return;
@@ -701,5 +725,15 @@ class SyncController extends StateNotifier<SyncState> {
 
 final syncControllerProvider =
 StateNotifierProvider<SyncController, SyncState>((ref) {
-  return SyncController(ref);
+  final controller = SyncController(ref);
+  
+  // Auto-sync on startup if configured
+  Future.microtask(() {
+    final settings = ref.read(syncSettingsProvider);
+    if (settings.isConfigured) {
+      controller.syncNow();
+    }
+  });
+  
+  return controller;
 });

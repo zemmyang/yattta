@@ -82,7 +82,9 @@ void main() {
       await engine.push();
 
       verify(client.ensureYatttaFolders()).called(1);
-      verify(client.write(argThat(contains('todos.md')), any, ifMatch: anyNamed('ifMatch'))).called(1);
+      verify(client.write(argThat(contains('todos/normal.md')), any, ifMatch: anyNamed('ifMatch'))).called(1);
+      verify(client.write(argThat(contains('todos/high.md')), any, ifMatch: anyNamed('ifMatch'))).called(1);
+      verify(client.write(argThat(contains('todos/low.md')), any, ifMatch: anyNamed('ifMatch'))).called(1);
       verify(client.write(argThat(contains('braindumps/')), any, ifMatch: anyNamed('ifMatch'))).called(1);
       verify(client.write(argThat(contains('settings.yaml')), any, ifMatch: anyNamed('ifMatch'))).called(1);
     });
@@ -97,7 +99,7 @@ void main() {
       
       // First push calls write
       await engine.push();
-      verify(client.write('yattta/todos.md', bytes, ifMatch: null)).called(1);
+      verify(client.write('yattta/todos/normal.md', bytes, ifMatch: null)).called(1);
 
       // Second push with same content should skip write
       clearInteractions(client);
@@ -114,7 +116,10 @@ void main() {
       final initialEtag = 'etag-1';
 
       when(client.exists('yattta', isDirectory: true)).thenAnswer((_) async => true);
-      when(client.read('yattta/todos.md')).thenAnswer((_) async => 
+      when(client.list('yattta/todos')).thenAnswer((_) async => [
+        YatttaFile(path: 'yattta/todos/normal.md', name: 'normal.md', isDirectory: false)
+      ]);
+      when(client.read('yattta/todos/normal.md')).thenAnswer((_) async => 
           YatttaReadResult(initialBytes, initialEtag));
 
       await engine.pull();
@@ -129,7 +134,7 @@ void main() {
 
       // Should handle the conflict internally (last-write-wins usually, but SafeWrite honors the If-Match)
       await engine.push();
-      verify(client.write('yattta/todos.md', any, ifMatch: initialEtag)).called(1);
+      verify(client.write('yattta/todos/normal.md', any, ifMatch: initialEtag)).called(1);
     });
 
     test('pull() should read and upsert from remote files', () async {
@@ -140,12 +145,31 @@ void main() {
       ]);
       
       when(client.exists('yattta', isDirectory: true)).thenAnswer((_) async => true);
-      when(client.read('yattta/todos.md')).thenAnswer((_) async => 
+      when(client.list('yattta/todos')).thenAnswer((_) async => [
+        YatttaFile(path: 'yattta/todos/normal.md', name: 'normal.md', isDirectory: false)
+      ]);
+      when(client.read('yattta/todos/normal.md')).thenAnswer((_) async =>
           YatttaReadResult(Uint8List.fromList(utf8.encode(todoMd)), 'etag-1'));
 
       await engine.pull();
 
       verify(todos.upsertFromRemote(argThat(predicate((p) => p is ParsedTodo && p.id == 'abcdef12-3456')))).called(1);
+    });
+
+    test('pull() should handle legacy todos.md file', () async {
+      final now = DateTime(2023, 10, 27, 10, 0);
+      final legacyMd = TodoFileSerializer.serialize([
+        ParsedTodo(id: 'deadbeef-3456', title: 'Legacy Task', completed: false, priority: ParsedPriority.normal, updatedAt: now)
+      ]);
+
+      when(client.exists('yattta', isDirectory: true)).thenAnswer((_) async => true);
+      when(client.list('yattta/todos')).thenAnswer((_) async => []); // No new files
+      when(client.read('yattta/todos.md')).thenAnswer((_) async =>
+          YatttaReadResult(Uint8List.fromList(utf8.encode(legacyMd)), 'etag-legacy'));
+
+      await engine.pull();
+
+      verify(todos.upsertFromRemote(argThat(predicate((p) => p is ParsedTodo && p.id == 'deadbeef-3456')))).called(1);
     });
   });
 }

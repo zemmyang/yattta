@@ -8,18 +8,25 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:drift/drift.dart' as drift;
 import 'add_tracker.dart';
 
-class TrackerDetailsPage extends ConsumerWidget {
+class TrackerDetailsPage extends ConsumerStatefulWidget {
   final Tracker tracker;
 
   const TrackerDetailsPage({super.key, required this.tracker});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logsStream = ref.watch(trackersDaoProvider).watchLogsForTracker(tracker.id);
+  ConsumerState<TrackerDetailsPage> createState() => _TrackerDetailsPageState();
+}
+
+class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
+  final Set<int> _expandedIndices = {0}; // Expand the first month by default
+
+  @override
+  Widget build(BuildContext context) {
+    final logsStream = ref.watch(trackersDaoProvider).watchLogsForTracker(widget.tracker.id);
 
     return FScaffold(
       header: FHeader.nested(
-        title: Text(tracker.title),
+        title: Text(widget.tracker.title),
         prefixes: [
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
         ],
@@ -29,14 +36,14 @@ class TrackerDetailsPage extends ConsumerWidget {
             onPress: () async {
               final remindersDao = ref.read(remindersDaoProvider);
               final tagsDao = ref.read(tagsDaoProvider);
-              final reminders = await remindersDao.getForTracker(tracker.id);
-              final tags = await tagsDao.getTagsForTracker(tracker.id);
+              final reminders = await remindersDao.getForTracker(widget.tracker.id);
+              final tags = await tagsDao.getTagsForTracker(widget.tracker.id);
 
               if (context.mounted) {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => AddTrackerPage(
-                      tracker: tracker,
+                      tracker: widget.tracker,
                       initialReminders: reminders,
                       initialTags: tags,
                     ),
@@ -72,17 +79,33 @@ class TrackerDetailsPage extends ConsumerWidget {
             final isIncreasing = lastValue > firstValue;
             final isDecreasing = lastValue < firstValue;
 
-            if (tracker.direction == TrackerDirection.increasing) {
+            if (widget.tracker.direction == TrackerDirection.increasing) {
               chartColor = isIncreasing ? Colors.green : Colors.red;
-            } else if (tracker.direction == TrackerDirection.decreasing) {
+            } else if (widget.tracker.direction == TrackerDirection.decreasing) {
               chartColor = isDecreasing ? Colors.green : Colors.red;
             }
+          }
+
+          // Group logs by month
+          final Map<String, List<TrackerLog>> groupedLogs = {};
+          final List<String> monthKeys = [];
+
+          // Sort logs most recent first for the list
+          final sortedLogs = List<TrackerLog>.from(logs)..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+
+          for (final log in sortedLogs) {
+            final monthKey = '${_getMonthName(log.loggedAt.month)} ${log.loggedAt.year}';
+            if (!groupedLogs.containsKey(monthKey)) {
+              groupedLogs[monthKey] = [];
+              monthKeys.add(monthKey);
+            }
+            groupedLogs[monthKey]!.add(log);
           }
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (tracker.notes != null && tracker.notes!.isNotEmpty) ...[
+              if (widget.tracker.notes != null && widget.tracker.notes!.isNotEmpty) ...[
                 Text(
                   'Notes',
                   style: FTheme.of(context).typography.body.sm.copyWith(
@@ -91,7 +114,7 @@ class TrackerDetailsPage extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 8),
-                Text(tracker.notes!),
+                Text(widget.tracker.notes!),
                 const SizedBox(height: 24),
               ],
               SizedBox(
@@ -161,34 +184,60 @@ class TrackerDetailsPage extends ConsumerWidget {
                 style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              ...logs.reversed.map((log) {
-                final displayValue = tracker.valueType == TrackerValueType.integer 
-                  ? log.value.toInt().toString() 
-                  : log.value.toStringAsFixed(1);
+              FAccordion(
+                control: FAccordionControl.lifted(
+                  expanded: (index) => _expandedIndices.contains(index),
+                  onChange: (index, expanded) => setState(() {
+                    if (expanded) {
+                      _expandedIndices.add(index);
+                    } else {
+                      _expandedIndices.remove(index);
+                    }
+                  }),
+                ),
+                children: monthKeys.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final monthKey = entry.value;
+                  final logsInMonth = groupedLogs[monthKey]!;
 
-                return FTile(
-                  title: Text('$displayValue ${tracker.unit ?? ''}'),
-                  subtitle: Text(
-                    '${log.loggedAt.year}-${log.loggedAt.month.toString().padLeft(2, '0')}-${log.loggedAt.day.toString().padLeft(2, '0')} '
-                    '${log.loggedAt.hour.toString().padLeft(2, '0')}:${log.loggedAt.minute.toString().padLeft(2, '0')}',
-                  ),
-                  suffix: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FButton.icon(
-                        variant: FButtonVariant.ghost,
-                        onPress: () => _editLog(context, ref, log),
-                        child: const Icon(FLucideIcons.pencil),
-                      ),
-                      FButton.icon(
-                        variant: FButtonVariant.ghost,
-                        onPress: () => _deleteLog(context, ref, log),
-                        child: const Icon(FLucideIcons.trash),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                  return FAccordionItem(
+                    title: Text(monthKey),
+                    child: Column(
+                      children: logsInMonth.map((log) {
+                        final displayValue = widget.tracker.valueType == TrackerValueType.integer 
+                          ? log.value.toInt().toString() 
+                          : log.value.toStringAsFixed(1);
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: FTile(
+                            title: Text('$displayValue ${widget.tracker.unit ?? ''}'),
+                            subtitle: Text(
+                              '${log.loggedAt.year}-${log.loggedAt.month.toString().padLeft(2, '0')}-${log.loggedAt.day.toString().padLeft(2, '0')} '
+                              '${log.loggedAt.hour.toString().padLeft(2, '0')}:${log.loggedAt.minute.toString().padLeft(2, '0')}',
+                            ),
+                            suffix: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FButton.icon(
+                                  variant: FButtonVariant.ghost,
+                                  onPress: () => _editLog(context, ref, log),
+                                  child: const Icon(FLucideIcons.pencil),
+                                ),
+                                FButton.icon(
+                                  variant: FButtonVariant.ghost,
+                                  onPress: () => _deleteLog(context, ref, log),
+                                  child: const Icon(FLucideIcons.trash),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
             ],
           );
         },
@@ -196,8 +245,16 @@ class TrackerDetailsPage extends ConsumerWidget {
     );
   }
 
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
   void _editLog(BuildContext context, WidgetRef ref, TrackerLog log) async {
-    final initialValue = tracker.valueType == TrackerValueType.integer 
+    final initialValue = widget.tracker.valueType == TrackerValueType.integer
       ? log.value.toInt().toString() 
       : log.value.toString();
       

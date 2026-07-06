@@ -113,6 +113,24 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
         const SizedBox(height: 12),
         const Text('Password / App password'),
         TextField(controller: _passwordController, obscureText: true),
+        const SizedBox(height: 12),
+        const Text('Sync Frequency'),
+        DropdownButtonFormField<int>(
+          value: settings.syncFrequency,
+          items: const [
+            DropdownMenuItem(value: 0, child: Text('Manual Only')),
+            DropdownMenuItem(value: 15, child: Text('Every 15 minutes')),
+            DropdownMenuItem(value: 60, child: Text('Every hour')),
+            DropdownMenuItem(value: 360, child: Text('Every 6 hours')),
+            DropdownMenuItem(value: 720, child: Text('Every 12 hours')),
+            DropdownMenuItem(value: 1440, child: Text('Daily')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              settingsController.setSyncFrequency(value);
+            }
+          },
+        ),
         const SizedBox(height: 16),
         Row(
           children: [

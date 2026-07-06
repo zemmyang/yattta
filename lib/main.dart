@@ -9,6 +9,9 @@ import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/data/database/app_database.dart';
+import 'package:yattta/utils/seed_data.dart';
+import 'package:yattta/presentation/providers/sync_provider.dart';
+import 'package:yattta/presentation/widgets/sync_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +19,13 @@ void main() async {
   
   await settingsController.initialize(db);
   await themeController.initialize(db);
+
+  if (const bool.fromEnvironment('PRESEED_DATA', defaultValue: false)) {
+    final tags = await db.tagsDao.getAllTags();
+    if (tags.isEmpty) {
+      await DataSeeder(db).seed();
+    }
+  }
 
   runApp(const ProviderScope(child: Application()));
 }
@@ -39,12 +49,14 @@ class Application extends StatelessWidget {
             data: theme,
             child: FToaster(
               child: FTooltipGroup(
-                child: ColoredBox(
-                  color: theme.colors.background,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 450),
-                      child: child!,
+                child: SyncOverlay(
+                  child: ColoredBox(
+                    color: theme.colors.background,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 450),
+                        child: child!,
+                      ),
                     ),
                   ),
                 ),
@@ -58,11 +70,25 @@ class Application extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Global sync feedback
+    ref.listen(syncControllerProvider, (previous, next) {
+      if (previous?.status == SyncStatus.syncing && next.status == SyncStatus.idle) {
+        showFToast(context: context, title: const Text('Sync Successful'));
+      } else if (next.status == SyncStatus.error) {
+        showFToast(
+          context: context,
+          title: const Text('Sync Failed'),
+          description: Text(next.errorMessage ?? 'Unknown error'),
+          variant: FToastVariant.destructive,
+        );
+      }
+    });
+
     return ListenableBuilder(
       listenable: settingsController,
       builder: (context, _) {

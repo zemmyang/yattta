@@ -15,6 +15,10 @@ class TagsDao extends DatabaseAccessor<AppDatabase>
     ..orderBy([(t) => OrderingTerm.asc(t.name)]))
       .watch();
 
+  Future<List<Tag>> getAllTags() => (select(tags)
+    ..where((t) => t.deletedAt.isNull()))
+      .get();
+
   Stream<List<Tag>> watchDeleted() => (select(tags)
     ..where((t) => t.deletedAt.isNotNull())
     ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]))
