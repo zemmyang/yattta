@@ -7,44 +7,139 @@ import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
+import 'package:yattta/data/daos/tasks_dao.dart';
 import 'package:yattta/presentation/pages/unified_text_entry.dart';
 import 'package:yattta/presentation/pages/task_details.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 
-class TasksPage extends ConsumerWidget {
+class TasksPage extends ConsumerStatefulWidget {
   final VoidCallback? onMenuPressed;
 
   const TasksPage({super.key, this.onMenuPressed});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tasksAsync = ref.watch(activeTasksProvider);
+  ConsumerState<TasksPage> createState() => _TasksPageState();
+}
+
+class _TasksPageState extends ConsumerState<TasksPage> {
+  final Set<String> _selectedTagIds = {};
+
+  void _showFilterDialog() {
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final tagsAsync = ref.watch(tagsStreamProvider);
+          final tags = tagsAsync.value ?? [];
+
+          return FDialog(
+            title: const Text('Filter by Tags'),
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (tags.isEmpty)
+                  Text(
+                    'No tags available',
+                    style: FTheme.of(context).typography.body.xs.copyWith(
+                          color: FTheme.of(context).colors.mutedForeground,
+                        ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: tags.map((tag) {
+                      final isSelected = _selectedTagIds.contains(tag.id);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedTagIds.remove(tag.id);
+                            } else {
+                              _selectedTagIds.add(tag.id);
+                            }
+                          });
+                          setStateDialog(() {});
+                        },
+                        child: TagBadge(
+                          tag: tag,
+                          variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+            actions: [
+              FButton(
+                variant: FButtonVariant.ghost,
+                onPress: () {
+                  setState(() {
+                    _selectedTagIds.clear();
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Reset'),
+              ),
+              FButton(
+                onPress: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tasksAsync = ref.watch(tasksWithTagsProvider);
     final logsAsync = ref.watch(todayLogsProvider);
     final remindersAsync = ref.watch(activeRemindersProvider);
+    final isFilterActive = _selectedTagIds.isNotEmpty;
 
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Tasks'),
         prefixes: [
-          if (onMenuPressed != null)
+          if (widget.onMenuPressed != null)
             FHeaderAction(
               icon: const Icon(FLucideIcons.menu),
-              onPress: onMenuPressed!,
+              onPress: widget.onMenuPressed!,
             ),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: Icon(
+              FLucideIcons.filter,
+              color: isFilterActive ? FTheme.of(context).colors.primary : null,
+            ),
+            onPress: _showFilterDialog,
+          ),
         ],
       ),
       child: Stack(
         children: [
           tasksAsync.when(
-            data: (tasks) => logsAsync.when(
-              data: (logs) => remindersAsync.when(
-                data: (reminders) => _buildTaskList(context, ref, tasks, logs, reminders),
+            data: (tasks) {
+              var filteredTasks = tasks.where((t) => t.task.isActive && t.task.deletedAt == null).toList();
+
+              if (_selectedTagIds.isNotEmpty) {
+                filteredTasks = filteredTasks.where((t) => t.tags.any((tag) => _selectedTagIds.contains(tag.id))).toList();
+              }
+
+              return logsAsync.when(
+                data: (logs) => remindersAsync.when(
+                  data: (reminders) => _buildTaskList(context, ref, filteredTasks, logs, reminders),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(child: Text('Error loading reminders: $err')),
+                ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error loading reminders: $err')),
-              ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error loading logs: $err')),
-            ),
+                error: (err, stack) => Center(child: Text('Error loading logs: $err')),
+              );
+            },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => Center(child: Text('Error loading tasks: $err')),
           ),
@@ -63,27 +158,31 @@ class TasksPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTaskList(BuildContext context, WidgetRef ref, List<Task> allTasks, List<TaskLog> logs, List<Reminder> allReminders) {
+  Widget _buildTaskList(
+      BuildContext context, WidgetRef ref, List<TaskWithTags> allTasks, List<TaskLog> logs, List<Reminder> allReminders) {
     if (allTasks.isEmpty) {
-      return const Center(child: Text('No active tasks. Add one!'));
+      return Center(
+        child: Text(_selectedTagIds.isNotEmpty ? 'No tasks match your filters.' : 'No active tasks. Add one!'),
+      );
     }
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
 
-    final todayTasks = <Task>[];
-    final noRemindersTasks = <Task>[];
-    final futureTasks = <Task>[];
+    final todayTasks = <TaskWithTags>[];
+    final noRemindersTasks = <TaskWithTags>[];
+    final futureTasks = <TaskWithTags>[];
 
-    for (final task in allTasks) {
+    for (final taskWithTags in allTasks) {
+      final task = taskWithTags.task;
       final taskReminders = allReminders.where((r) => r.taskId == task.id).toList();
       if (taskReminders.isEmpty) {
-        noRemindersTasks.add(task);
+        noRemindersTasks.add(taskWithTags);
       } else if (taskReminders.any((r) => r.remindAt.isBefore(tomorrow))) {
-        todayTasks.add(task);
+        todayTasks.add(taskWithTags);
       } else {
-        futureTasks.add(task);
+        futureTasks.add(taskWithTags);
       }
     }
 
@@ -92,19 +191,16 @@ class TasksPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (todayTasks.isNotEmpty)
-            _buildTaskGroup(context, ref, 'Today', todayTasks, logs),
-          if (noRemindersTasks.isNotEmpty)
-            _buildTaskGroup(context, ref, 'No reminders set', noRemindersTasks, logs),
-          if (futureTasks.isNotEmpty)
-            _buildTaskGroup(context, ref, 'Future', futureTasks, logs),
+          if (todayTasks.isNotEmpty) _buildTaskGroup(context, ref, 'Today', todayTasks, logs),
+          if (noRemindersTasks.isNotEmpty) _buildTaskGroup(context, ref, 'No reminders set', noRemindersTasks, logs),
+          if (futureTasks.isNotEmpty) _buildTaskGroup(context, ref, 'Future', futureTasks, logs),
           const SizedBox(height: 80), // Space for FAB
         ],
       ),
     );
   }
 
-  Widget _buildTaskGroup(BuildContext context, WidgetRef ref, String title, List<Task> tasks, List<TaskLog> logs) {
+  Widget _buildTaskGroup(BuildContext context, WidgetRef ref, String title, List<TaskWithTags> tasks, List<TaskLog> logs) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -124,16 +220,17 @@ class TasksPage extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: tasks.length,
             onReorderItem: (oldIndex, newIndex) {
+              if (_selectedTagIds.isNotEmpty) return; // Disable reorder when filtered
               final item = tasks.removeAt(oldIndex);
               tasks.insert(newIndex, item);
               ref.read(tasksDaoProvider).updatePositions(
-                    tasks.map((t) => t.id).toList(),
+                    tasks.map((t) => t.task.id).toList(),
                   );
             },
             itemBuilder: (context, index) {
-              final task = tasks[index];
-              final log = logs.where((l) => l.taskId == task.id).firstOrNull;
-              return _buildTaskTile(context, ref, task, log, index);
+              final taskWithTags = tasks[index];
+              final log = logs.where((l) => l.taskId == taskWithTags.task.id).firstOrNull;
+              return _buildTaskTile(context, ref, taskWithTags, log, index);
             },
           ),
         ],
@@ -141,14 +238,15 @@ class TasksPage extends ConsumerWidget {
     );
   }
 
-  FTile _buildTaskTile(BuildContext context, WidgetRef ref, Task task, TaskLog? log, int index) {
+  FTile _buildTaskTile(BuildContext context, WidgetRef ref, TaskWithTags taskWithTags, TaskLog? log, int index) {
+    final task = taskWithTags.task;
+    final tags = taskWithTags.tags;
     final isDone = log?.status == TaskLogStatus.done;
     final isSkipped = log?.status == TaskLogStatus.skipped;
 
     return FTile(
       key: ValueKey(task.id),
       onPress: () async {
-        final tags = await ref.read(tagsDaoProvider).getTagsForTask(task.id);
         if (context.mounted) {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -187,31 +285,27 @@ class TasksPage extends ConsumerWidget {
           ),
         ],
       ),
-      subtitle: FutureBuilder<List<Tag>>(
-        future: ref.read(tagsDaoProvider).getTagsForTask(task.id),
-        builder: (context, snapshot) {
-          final tags = snapshot.data ?? [];
-          if (tags.isEmpty) return const SizedBox();
-          return Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: tags.map((tag) => TagBadge(tag: tag)).toList(),
+      subtitle: tags.isEmpty
+          ? const SizedBox()
+          : Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: tags.map((tag) => TagBadge(tag: tag)).toList(),
+              ),
             ),
-          );
-        },
-      ),
       prefix: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child: Icon(FLucideIcons.gripVertical, size: 20),
+          if (_selectedTagIds.isEmpty)
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(FLucideIcons.gripVertical, size: 20),
+              ),
             ),
-          ),
           FCheckbox(
             value: isDone,
             onChange: (value) => _toggleTaskDone(ref, task, log, value),
@@ -235,7 +329,7 @@ class TasksPage extends ConsumerWidget {
           const SizedBox(width: 4),
           FButton.icon(
             variant: FButtonVariant.ghost,
-            onPress: () => _editTask(context, ref, task),
+            onPress: () => _editTask(context, ref, task, tags),
             child: const Icon(FLucideIcons.pencil),
           ),
           const SizedBox(width: 4),
@@ -256,12 +350,9 @@ class TasksPage extends ConsumerWidget {
     );
   }
 
-  void _editTask(BuildContext context, WidgetRef ref, Task task) async {
+  void _editTask(BuildContext context, WidgetRef ref, Task task, List<Tag> tags) async {
     final remindersDao = ref.read(remindersDaoProvider);
-    final tagsDao = ref.read(tagsDaoProvider);
-
     final reminders = await remindersDao.getForTask(task.id);
-    final tags = await tagsDao.getTagsForTask(task.id);
 
     if (context.mounted) {
       Navigator.of(context).push(

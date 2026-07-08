@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(DatabaseConnection super.connection);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   // Migrations go here as schemaVersion grows
   @override
@@ -84,6 +84,53 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.createTable(brainDumpTags);
+      }
+      if (from < 5) {
+        // Add unique index to tags name (case-insensitive)
+        // Handle existing duplicates by merging them.
+        
+        await transaction(() async {
+          // 1. Find all duplicate names (case-insensitive)
+          final duplicates = await customSelect(
+            'SELECT LOWER(name) as lower_name FROM tags GROUP BY LOWER(name) HAVING COUNT(*) > 1',
+          ).get();
+
+          for (final row in duplicates) {
+            final lowerName = row.read<String>('lower_name');
+            
+            // 2. Get all tags with this name (case-insensitive)
+            final tagsWithSameName = await (select(tags)
+              ..where((t) => t.name.lower().equals(lowerName))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+              .get();
+
+            if (tagsWithSameName.length > 1) {
+              final primaryTag = tagsWithSameName.first;
+              final duplicatesToMerge = tagsWithSameName.skip(1);
+
+              for (final duplicate in duplicatesToMerge) {
+                // 3. Update junction tables to point to the primary tag
+                // We use ignore to avoid primary key violations if both tags were already attached
+                await customStatement('UPDATE OR IGNORE todo_tags SET tag_id = ? WHERE tag_id = ?', [primaryTag.id, duplicate.id]);
+                await customStatement('UPDATE OR IGNORE task_tags SET tag_id = ? WHERE tag_id = ?', [primaryTag.id, duplicate.id]);
+                await customStatement('UPDATE OR IGNORE tracker_tags SET tag_id = ? WHERE tag_id = ?', [primaryTag.id, duplicate.id]);
+                await customStatement('UPDATE OR IGNORE brain_dump_tags SET tag_id = ? WHERE tag_id = ?', [primaryTag.id, duplicate.id]);
+                
+                // Delete the old junction entries that weren't updated due to IGNORE
+                await customStatement('DELETE FROM todo_tags WHERE tag_id = ?', [duplicate.id]);
+                await customStatement('DELETE FROM task_tags WHERE tag_id = ?', [duplicate.id]);
+                await customStatement('DELETE FROM tracker_tags WHERE tag_id = ?', [duplicate.id]);
+                await customStatement('DELETE FROM brain_dump_tags WHERE tag_id = ?', [duplicate.id]);
+
+                // 4. Delete the duplicate tag
+                await customStatement('DELETE FROM tags WHERE id = ?', [duplicate.id]);
+              }
+            }
+          }
+
+          // 5. Create the unique index
+          await m.createIndex(Index('tags', 'CREATE UNIQUE INDEX tags_name_unique ON tags (name COLLATE NOCASE)'));
+        });
       }
     },
   );

@@ -280,6 +280,38 @@ class _TodosPageState extends ConsumerState<TodosPage> {
     );
   }
 
+  void _confirmDeleteCompleted() async {
+    final confirm = await showFDialog<bool>(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Clean Up Completed'),
+        body: const Text('Are you sure you want to move all completed todos to the recycle bin?'),
+        actions: [
+          FButton(
+            variant: FButtonVariant.ghost,
+            onPress: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(true),
+            child: const Text('Move to Recycle Bin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(todosDaoProvider).softDeleteCompleted();
+      if (mounted) {
+        showFToast(
+          context: context,
+          title: const Text('Moved to Recycle Bin'),
+          description: const Text('All completed todos have been soft-deleted.'),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final todosAsync = ref.watch(todosProvider);
@@ -480,7 +512,21 @@ class _TodosPageState extends ConsumerState<TodosPage> {
                                             color: FTheme.of(context).colors.mutedForeground,
                                           ),
                                     ),
-                                    child: _buildTodoList(doneTodos, isPending: false),
+                                    child: Column(
+                                      children: [
+                                        _buildTodoList(doneTodos, isPending: false),
+                                        if (doneTodos.isNotEmpty) ...[
+                                          const SizedBox(height: 16),
+                                          FButton(
+                                            variant: FButtonVariant.outline,
+                                            onPress: _confirmDeleteCompleted,
+                                            suffix: const Icon(FLucideIcons.trash2),
+                                            child: const Text('Clean Up Completed'),
+                                          ),
+                                          const SizedBox(height: 8),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ],
                               );

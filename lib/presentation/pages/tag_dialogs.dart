@@ -13,13 +13,17 @@ Future<String?> showAddTagDialog(BuildContext context, WidgetRef ref) async {
     builder: (context, style, animation) => StatefulBuilder(
       builder: (context, setState) {
         final tagsAsync = ref.watch(tagsStreamProvider);
+        final deletedTagsAsync = ref.watch(deletedTagsProvider);
         final name = controller.text.trim();
         final existingTags = tagsAsync.value ?? [];
+        final deletedTags = deletedTagsAsync.value ?? [];
+        
         final isDuplicate = existingTags.any((t) => t.name.toLowerCase() == name.toLowerCase());
+        final isDuplicateInDeleted = deletedTags.any((t) => t.name.toLowerCase() == name.toLowerCase());
 
         final suggestions = name.isEmpty
             ? <Tag>[]
-            : existingTags
+            : [...existingTags, ...deletedTags]
                 .where((t) =>
                     t.name.toLowerCase().contains(name.toLowerCase()) && t.name.toLowerCase() != name.toLowerCase())
                 .toList();
@@ -51,7 +55,9 @@ Future<String?> showAddTagDialog(BuildContext context, WidgetRef ref) async {
                   controller: controller,
                   onChange: (value) => setState(() {}),
                 ),
-                error: isDuplicate ? const Text('Tag already exists') : null,
+                error: isDuplicate 
+                    ? const Text('Tag already exists') 
+                    : (isDuplicateInDeleted ? const Text('Tag exists in recycle bin') : null),
               ),
               const SizedBox(height: 16),
               Text(
@@ -129,7 +135,7 @@ Future<String?> showAddTagDialog(BuildContext context, WidgetRef ref) async {
               child: const Text('Cancel'),
             ),
             FButton(
-              onPress: (name.isEmpty || isDuplicate)
+              onPress: (name.isEmpty || isDuplicate || isDuplicateInDeleted)
                   ? null
                   : () async {
                       final tagId = const Uuid().v4();

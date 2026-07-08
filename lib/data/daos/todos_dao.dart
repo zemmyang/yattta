@@ -1,5 +1,6 @@
 // daos/todos_dao.dart
 import 'package:drift/drift.dart';
+import '../converters/enum_converters.dart';
 import '../database/app_database.dart';
 import '../tables/todos_table.dart';
 import '../tables/tags_table.dart';
@@ -65,6 +66,11 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   // Soft delete
   Future<void> softDelete(String id) =>
       (update(todos)..where((t) => t.id.equals(id)))
+          .write(TodosCompanion(deletedAt: Value(DateTime.now())));
+
+  // Soft delete all completed todos
+  Future<void> softDeleteCompleted() =>
+      (update(todos)..where((t) => t.status.equals(TodoStatus.done.index)))
           .write(TodosCompanion(deletedAt: Value(DateTime.now())));
 
   // Restore

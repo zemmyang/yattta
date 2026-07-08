@@ -23,6 +23,8 @@ class AddEntryPage extends ConsumerStatefulWidget {
   final Tracker? tracker;
   final List<Reminder>? initialReminders;
   final List<Tag>? initialTags;
+  final String? initialTitle;
+  final String? initialNotes;
 
   const AddEntryPage({
     super.key,
@@ -32,6 +34,8 @@ class AddEntryPage extends ConsumerStatefulWidget {
     this.tracker,
     this.initialReminders,
     this.initialTags,
+    this.initialTitle,
+    this.initialNotes,
   });
 
   @override
@@ -60,10 +64,10 @@ class _AddEntryPageState extends ConsumerState<AddEntryPage> {
   @override
   void initState() {
     super.initState();
-    String? initialNotes;
-    if (widget.type == EntryType.task) initialNotes = widget.task?.notes;
-    else if (widget.type == EntryType.todo) initialNotes = widget.todo?.notes;
-    else if (widget.type == EntryType.tracker) initialNotes = widget.tracker?.notes;
+    String? initialNotes = widget.initialNotes;
+    if (widget.type == EntryType.task) initialNotes = widget.task?.notes ?? initialNotes;
+    else if (widget.type == EntryType.todo) initialNotes = widget.todo?.notes ?? initialNotes;
+    else if (widget.type == EntryType.tracker) initialNotes = widget.tracker?.notes ?? initialNotes;
 
     _quillController = QuillController(
       document: loadNoteToDocument(initialNotes),
@@ -86,6 +90,8 @@ class _AddEntryPageState extends ConsumerState<AddEntryPage> {
       _unitController.text = widget.tracker!.unit ?? '';
       _valueType = widget.tracker!.valueType;
       _direction = widget.tracker!.direction;
+    } else if (widget.initialTitle != null) {
+      _titleController.text = widget.initialTitle!;
     }
 
     if (widget.initialReminders != null) {

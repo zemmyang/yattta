@@ -11,56 +11,149 @@ import 'add_entry_page.dart';
 import 'tracker_details.dart';
 import 'tag_dialogs.dart';
 
-class TrackersPage extends ConsumerWidget {
+class TrackersPage extends ConsumerStatefulWidget {
   final VoidCallback? onMenuPressed;
 
   const TrackersPage({super.key, this.onMenuPressed});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrackersPage> createState() => _TrackersPageState();
+}
+
+class _TrackersPageState extends ConsumerState<TrackersPage> {
+  final Set<String> _selectedTagIds = {};
+
+  void _showFilterDialog() {
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final tagsAsync = ref.watch(tagsStreamProvider);
+          final tags = tagsAsync.value ?? [];
+
+          return FDialog(
+            title: const Text('Filter by Tags'),
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (tags.isEmpty)
+                  Text(
+                    'No tags available',
+                    style: FTheme.of(context).typography.body.xs.copyWith(
+                          color: FTheme.of(context).colors.mutedForeground,
+                        ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: tags.map((tag) {
+                      final isSelected = _selectedTagIds.contains(tag.id);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedTagIds.remove(tag.id);
+                            } else {
+                              _selectedTagIds.add(tag.id);
+                            }
+                          });
+                          setStateDialog(() {});
+                        },
+                        child: TagBadge(
+                          tag: tag,
+                          variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+            actions: [
+              FButton(
+                variant: FButtonVariant.ghost,
+                onPress: () {
+                  setState(() {
+                    _selectedTagIds.clear();
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Reset'),
+              ),
+              FButton(
+                onPress: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trackersAsync = ref.watch(trackersProvider);
+    final isFilterActive = _selectedTagIds.isNotEmpty;
 
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Trackers'),
         prefixes: [
-          if (onMenuPressed != null)
+          if (widget.onMenuPressed != null)
             FHeaderAction(
               icon: const Icon(FLucideIcons.menu),
-              onPress: onMenuPressed!,
+              onPress: widget.onMenuPressed!,
             ),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: Icon(
+              FLucideIcons.filter,
+              color: isFilterActive ? FTheme.of(context).colors.primary : null,
+            ),
+            onPress: _showFilterDialog,
+          ),
         ],
       ),
       child: Stack(
         children: [
           trackersAsync.when(
             data: (trackers) {
-              if (trackers.isEmpty) {
-                return const Center(
-                  child: Text('No trackers yet. Add one!'),
+              var filteredTrackers = trackers;
+              if (_selectedTagIds.isNotEmpty) {
+                filteredTrackers = trackers.where((t) => t.tags.any((tag) => _selectedTagIds.contains(tag.id))).toList();
+              }
+
+              if (filteredTrackers.isEmpty) {
+                return Center(
+                  child: Text(_selectedTagIds.isNotEmpty ? 'No trackers match your filters.' : 'No trackers yet. Add one!'),
                 );
               }
 
               return ReorderableListView.builder(
                 buildDefaultDragHandles: false,
                 padding: const EdgeInsets.all(16),
-                itemCount: trackers.length,
+                itemCount: filteredTrackers.length,
                 onReorderItem: (oldIndex, newIndex) {
+                  if (_selectedTagIds.isNotEmpty) return; // Disable reorder when filtered
                   if (oldIndex < newIndex) {
                     newIndex -= 1;
                   }
-                  final item = trackers.removeAt(oldIndex);
-                  trackers.insert(newIndex, item);
+                  final item = filteredTrackers.removeAt(oldIndex);
+                  filteredTrackers.insert(newIndex, item);
                   ref.read(trackersDaoProvider).updatePositions(
-                        trackers.map((t) => t.tracker.id).toList(),
+                        filteredTrackers.map((t) => t.tracker.id).toList(),
                       );
                 },
                 itemBuilder: (context, index) {
-                  final tracker = trackers[index];
+                  final tracker = filteredTrackers[index];
                   return TrackerTile(
                     key: ValueKey(tracker.tracker.id),
                     item: tracker,
                     index: index,
+                    isReorderable: _selectedTagIds.isEmpty,
                   );
                 },
               );
@@ -87,8 +180,14 @@ class TrackersPage extends ConsumerWidget {
 class TrackerTile extends ConsumerStatefulWidget {
   final TrackerWithTags item;
   final int index;
+  final bool isReorderable;
 
-  const TrackerTile({super.key, required this.item, required this.index});
+  const TrackerTile({
+    super.key,
+    required this.item,
+    required this.index,
+    this.isReorderable = true,
+  });
 
   @override
   ConsumerState<TrackerTile> createState() => _TrackerTileState();
@@ -180,13 +279,15 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
           ],
         ],
       ),
-      prefix: ReorderableDragStartListener(
-        index: widget.index,
-        child: const Padding(
-          padding: EdgeInsets.only(right: 8),
-          child: Icon(FLucideIcons.gripVertical, size: 20),
-        ),
-      ),
+      prefix: widget.isReorderable
+          ? ReorderableDragStartListener(
+              index: widget.index,
+              child: const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(FLucideIcons.gripVertical, size: 20),
+              ),
+            )
+          : null,
       onPress: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => TrackerDetailsPage(tracker: widget.item.tracker),

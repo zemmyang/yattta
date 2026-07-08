@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -7,8 +9,10 @@ import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/widgets/note_editor.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import '../providers/database_providers.dart';
 import 'tag_dialogs.dart';
+
 
 enum TextEntryMode { brainDump, taskNotes, trackerLog }
 
@@ -138,6 +142,94 @@ class _UnifiedTextEntryPageState extends ConsumerState<UnifiedTextEntryPage> {
     }
   }
 
+  Future<void> _convertTo(EntryType type) async {
+    final note = _getNoteText();
+    if (note.isEmpty) return;
+
+    // Optional: Save the brain dump first if it's being edited or created
+    // and then mark it as reviewed if it's an existing one.
+    if (widget.mode == TextEntryMode.brainDump && widget.brainDump != null) {
+      await ref.read(brainDumpsDaoProvider).markAsReviewed(widget.brainDump!.id);
+    }
+
+    final tags = await _getSelectedTags();
+    final title = _getInitialTitle(note);
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => AddEntryPage(
+            type: type,
+            initialTitle: title,
+            initialNotes: note,
+            initialTags: tags,
+          ),
+        ),
+      );
+    }
+  }
+
+  String _getInitialTitle(String note) {
+    // Try to extract the first line as title
+    try {
+      if (note.startsWith('[')) {
+        final List<dynamic> json = jsonDecode(note);
+        final doc = Document.fromJson(json);
+        final plainText = doc.toPlainText().trim();
+        final firstLine = plainText.split('\n').first;
+        return firstLine.length > 50 ? '${firstLine.substring(0, 47)}...' : firstLine;
+      }
+    } catch (_) {}
+    final firstLine = note.split('\n').first;
+    return firstLine.length > 50 ? '${firstLine.substring(0, 47)}...' : firstLine;
+  }
+
+  Future<List<Tag>> _getSelectedTags() async {
+    final allTags = await ref.read(tagsDaoProvider).getAllTags();
+    return allTags.where((t) => _selectedTagIds.contains(t.id)).toList();
+  }
+
+  void _showConversionMenu() {
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => FDialog(
+        title: const Text('Convert to...'),
+        body: const Text('What would you like to convert this brain dump into?'),
+        actions: [
+          FButton(
+            onPress: () {
+              Navigator.of(context).pop();
+              _convertTo(EntryType.todo);
+            },
+            variant: FButtonVariant.outline,
+            child: const Text('Todo'),
+          ),
+          FButton(
+            onPress: () {
+              Navigator.of(context).pop();
+              _convertTo(EntryType.task);
+            },
+            variant: FButtonVariant.outline,
+            child: const Text('Task'),
+          ),
+          FButton(
+            onPress: () {
+              Navigator.of(context).pop();
+              _convertTo(EntryType.tracker);
+            },
+            variant: FButtonVariant.outline,
+            child: const Text('Tracker'),
+          ),
+          FButton(
+            onPress: () => Navigator.of(context).pop(),
+            variant: FButtonVariant.ghost,
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveBrainDump() async {
     final note = _getNoteText();
     if (note.isEmpty) return;
@@ -231,6 +323,11 @@ class _UnifiedTextEntryPageState extends ConsumerState<UnifiedTextEntryPage> {
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
         ],
         suffixes: [
+          if (widget.mode == TextEntryMode.brainDump)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.arrowRightLeft),
+              onPress: _showConversionMenu,
+            ),
           FHeaderAction(
             icon: const Icon(FLucideIcons.check),
             onPress: _save,
