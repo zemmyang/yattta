@@ -7,7 +7,7 @@ import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/data/daos/trackers_dao.dart';
-import 'add_tracker.dart';
+import 'add_entry_page.dart';
 import 'tracker_details.dart';
 import 'tag_dialogs.dart';
 
@@ -73,7 +73,7 @@ class TrackersPage extends ConsumerWidget {
             right: 16,
             child: FButton.icon(
               onPress: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const AddTrackerPage()),
+                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.tracker)),
               ),
               child: const Icon(FLucideIcons.plus),
             ),
@@ -219,7 +219,8 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
     if (mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => AddTrackerPage(
+          builder: (context) => AddEntryPage(
+            type: EntryType.tracker,
             tracker: widget.item.tracker,
             initialReminders: reminders,
             initialTags: widget.item.tags,

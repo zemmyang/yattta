@@ -6,7 +6,7 @@ import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
-import 'package:yattta/presentation/pages/add_todo.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
 
@@ -38,7 +38,8 @@ class TodoDetailsPage extends ConsumerWidget {
             icon: const Icon(FLucideIcons.pencil),
             onPress: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (context) => AddTodoPage(
+                builder: (context) => AddEntryPage(
+                  type: EntryType.todo,
                   todo: todo,
                   initialTags: tags,
                 ),

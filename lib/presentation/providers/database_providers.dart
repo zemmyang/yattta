@@ -37,6 +37,10 @@ final pomodoroSessionsDaoProvider = Provider(
   (ref) => ref.watch(appDatabaseProvider).pomodoroSessionsDao,
 );
 
+final completedTodoSessionsProvider = StreamProvider((ref) {
+  return ref.watch(pomodoroSessionsDaoProvider).watchAllCompletedTodoSessions();
+});
+
 final brainDumpsDaoProvider = Provider(
   (ref) => ref.watch(appDatabaseProvider).brainDumpsDao,
 );

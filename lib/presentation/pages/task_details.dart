@@ -5,7 +5,7 @@ import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
-import 'package:yattta/presentation/pages/add_task.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
 
 class TaskDetailsPage extends ConsumerWidget {
@@ -38,7 +38,8 @@ class TaskDetailsPage extends ConsumerWidget {
               if (context.mounted) {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => AddTaskPage(
+                    builder: (context) => AddEntryPage(
+                      type: EntryType.task,
                       task: task,
                       initialReminders: reminders,
                       initialTags: tags,

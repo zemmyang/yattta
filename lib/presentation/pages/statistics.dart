@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:heatmap_calendar_plus/heatmap_calendar_plus.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
+import 'package:yattta/utils/settings_controller.dart';
 
 class StatisticsPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -13,6 +15,19 @@ class StatisticsPage extends ConsumerWidget {
     final todosAsync = ref.watch(todosProvider);
     final tasksAsync = ref.watch(tasksWithTagsProvider);
     final trackersAsync = ref.watch(trackersProvider);
+    final completedSessionsAsync = ref.watch(completedTodoSessionsProvider);
+
+    final datasets = completedSessionsAsync.maybeWhen(
+      data: (sessions) {
+        final Map<DateTime, int> data = {};
+        for (final session in sessions) {
+          final date = DateTime(session.startedAt.year, session.startedAt.month, session.startedAt.day);
+          data[date] = (data[date] ?? 0) + 1;
+        }
+        return data;
+      },
+      orElse: () => <DateTime, int>{},
+    );
 
     return FScaffold(
       header: FHeader.nested(
@@ -112,6 +127,58 @@ class StatisticsPage extends ConsumerWidget {
                 prefix: const Icon(FLucideIcons.timer),
               ),
             ],
+          ),
+          const SizedBox(height: 32),
+          Text(
+            'Activity',
+            style: FTheme.of(context).typography.display.xl2.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: FTheme.of(context).colors.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: FTheme.of(context).colors.border),
+            ),
+            child: Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 250),
+                child: HeatMapCalendar(
+                  datasets: datasets,
+                  colorMode: ColorMode.opacity,
+                  defaultColor: FTheme.of(context).colors.muted,
+                  size: 25,
+                  weekStartsWith: settingsController.startOfWeek == DateTime.sunday ? 7 : settingsController.startOfWeek,
+                  dayTextStyle: TextStyle(
+                    color: FTheme.of(context).colors.foreground,
+                    fontSize: 10,
+                  ),
+                  monthTextStyle: TextStyle(
+                    color: FTheme.of(context).colors.foreground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  weekTextStyle: TextStyle(
+                    color: FTheme.of(context).colors.foreground,
+                    fontSize: 10,
+                  ),
+                  colorsets: {
+                    1: FTheme.of(context).colors.primary,
+                  },
+                  onClick: (date) {
+                    final count = datasets[date] ?? 0;
+                    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    showFToast(
+                      context: context,
+                      title: Text('$count Pomodoros'),
+                      description: Text(dateStr),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 32),
           Text(

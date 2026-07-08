@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yattta/data/database/app_database.dart';
-import 'package:yattta/presentation/pages/add_task.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
@@ -53,7 +53,7 @@ class TasksPage extends ConsumerWidget {
             right: 16,
             child: FButton.icon(
               onPress: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const AddTaskPage()),
+                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.task)),
               ),
               child: const Icon(FLucideIcons.plus),
             ),
@@ -266,7 +266,8 @@ class TasksPage extends ConsumerWidget {
     if (context.mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => AddTaskPage(
+          builder: (context) => AddEntryPage(
+            type: EntryType.task,
             task: task,
             initialReminders: reminders,
             initialTags: tags,

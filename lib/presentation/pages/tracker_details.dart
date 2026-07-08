@@ -5,7 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
-import 'package:yattta/presentation/pages/add_tracker.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
 import 'unified_text_entry.dart';
 
@@ -43,7 +43,8 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
               if (context.mounted) {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => AddTrackerPage(
+                    builder: (context) => AddEntryPage(
+                      type: EntryType.tracker,
                       tracker: widget.tracker,
                       initialReminders: reminders,
                       initialTags: tags,

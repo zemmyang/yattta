@@ -11,7 +11,7 @@ import 'package:yattta/utils/settings_controller.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
-import 'package:yattta/presentation/pages/add_todo.dart';
+import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/pages/unified_text_entry.dart';
 import 'package:yattta/presentation/pages/todo_details.dart';
 import 'package:yattta/presentation/pages/brain_dump_dialogs.dart';
@@ -50,7 +50,7 @@ class TodosPage extends ConsumerWidget {
             right: 16,
             child: FButton.icon(
               onPress: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const AddTodoPage()),
+                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.todo)),
               ),
               child: const Icon(FLucideIcons.plus),
             ),
@@ -484,7 +484,8 @@ class _MainState extends ConsumerState<Main> {
                                               size: FButtonSizeVariant.sm,
                                               onPress: () => Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (context) => AddTodoPage(
+                                                  builder: (context) => AddEntryPage(
+                                                    type: EntryType.todo,
                                                     todo: item.todo,
                                                     initialTags: item.tags,
                                                   ),
@@ -660,7 +661,8 @@ class _MainState extends ConsumerState<Main> {
                                               size: FButtonSizeVariant.sm,
                                               onPress: () => Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (context) => AddTodoPage(
+                                                  builder: (context) => AddEntryPage(
+                                                    type: EntryType.todo,
                                                     todo: item.todo,
                                                     initialTags: item.tags,
                                                   ),
