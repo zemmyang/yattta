@@ -15,62 +15,23 @@ import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/pages/unified_text_entry.dart';
 import 'package:yattta/presentation/pages/todo_details.dart';
 import 'package:yattta/presentation/pages/brain_dump_dialogs.dart';
+import 'package:yattta/data/daos/todos_dao.dart';
 
-class TodosPage extends ConsumerWidget {
+enum TimerMode { work, shortBreak, longBreak }
+
+enum SortOption { manual, priority }
+
+class TodosPage extends ConsumerStatefulWidget {
   final VoidCallback? onMenuPressed;
 
   const TodosPage({super.key, this.onMenuPressed});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Todos'),
-        prefixes: [
-          if (onMenuPressed != null)
-            FHeaderAction(
-              icon: const Icon(FLucideIcons.menu),
-              onPress: onMenuPressed!,
-            ),
-        ],
-        suffixes: [
-          FHeaderAction(
-            icon: const Icon(FLucideIcons.lightbulb),
-            onPress: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
-            ),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          const Main(),
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FButton.icon(
-              onPress: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.todo)),
-              ),
-              child: const Icon(FLucideIcons.plus),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<TodosPage> createState() => _TodosPageState();
 }
 
-enum TimerMode { work, shortBreak, longBreak }
-
-class Main extends ConsumerStatefulWidget {
-  const Main({super.key});
-
-  @override
-  ConsumerState<Main> createState() => _MainState();
-}
-
-class _MainState extends ConsumerState<Main> {
+class _TodosPageState extends ConsumerState<TodosPage> {
+  // Timer State
   late int _timeLeft; // in seconds
   Timer? _timer;
   bool _isPaused = false;
@@ -78,6 +39,11 @@ class _MainState extends ConsumerState<Main> {
   int _sessionsCompleted = 0;
   Todo? _focusedTodo;
   DateTime? _sessionStartedAt;
+
+  // Filter/Sort State
+  SortOption _sortOption = SortOption.manual;
+  final Set<String> _selectedTagIds = {};
+  final Set<int> _expandedIndices = {0, 1};
 
   int get _currentDurationMinutes {
     switch (_timerMode) {
@@ -218,479 +184,521 @@ class _MainState extends ConsumerState<Main> {
     }
   }
 
+  void _showFilterSortDialog() {
+    showFDialog(
+      context: context,
+      builder: (context, style, animation) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final tagsAsync = ref.watch(tagsStreamProvider);
+          final tags = tagsAsync.value ?? [];
+
+          return FDialog(
+            title: const Text('Filter & Sort'),
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FSelect<SortOption>(
+                  label: const Text('Sort By'),
+                  hint: 'Select sorting',
+                  items: const {
+                    'Manual (Reorderable)': SortOption.manual,
+                    'Priority (High to Low)': SortOption.priority,
+                  },
+                  control: FSelectControl.lifted(
+                    value: _sortOption,
+                    onChange: (value) {
+                      if (value != null) {
+                        setState(() => _sortOption = value);
+                        setStateDialog(() {});
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Filter by Tags',
+                  style: FTheme.of(context).typography.body.sm.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: FTheme.of(context).colors.mutedForeground,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                if (tags.isEmpty)
+                  Text(
+                    'No tags available',
+                    style: FTheme.of(context).typography.body.xs.copyWith(
+                          color: FTheme.of(context).colors.mutedForeground,
+                        ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: tags.map((tag) {
+                      final isSelected = _selectedTagIds.contains(tag.id);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedTagIds.remove(tag.id);
+                            } else {
+                              _selectedTagIds.add(tag.id);
+                            }
+                          });
+                          setStateDialog(() {});
+                        },
+                        child: TagBadge(
+                          tag: tag,
+                          variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+            actions: [
+              FButton(
+                variant: FButtonVariant.ghost,
+                onPress: () {
+                  setState(() {
+                    _sortOption = SortOption.manual;
+                    _selectedTagIds.clear();
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Reset'),
+              ),
+              FButton(
+                onPress: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final todosAsync = ref.watch(todosProvider);
+    final isFilterActive = _selectedTagIds.isNotEmpty || _sortOption != SortOption.manual;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = (constraints.maxWidth < constraints.maxHeight
-                ? constraints.maxWidth * 0.8
-                : constraints.maxHeight * 0.8)
-            .clamp(0.0, 400.0);
-        return SingleChildScrollView(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      _getModeLabel(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: size * 0.1,
-                        color: _getTimerColor(context),
-                      ),
-                    ),
-                    if (_timerMode == TimerMode.work) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
-                        style: TextStyle(
-                          fontSize: size * 0.05,
-                          color: FTheme.of(context).colors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    if (_focusedTodo != null) ...[
-                      Text(
-                        _focusedTodo!.title,
-                        style: FTheme.of(context).typography.body.lg.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    SizedBox(
-                      width: size,
-                      height: size,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox.expand(
-                            child: CircularProgressIndicator(
-                              value: _timeLeft / (_currentDurationMinutes * 60),
-                              strokeWidth: size * 0.05,
-                              backgroundColor: FTheme.of(context).colors.border,
-                              valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
-                            ),
+    return FScaffold(
+      header: FHeader.nested(
+        title: const Text('Todos'),
+        prefixes: [
+          if (widget.onMenuPressed != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.menu),
+              onPress: widget.onMenuPressed!,
+            ),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: Icon(
+              FLucideIcons.filter,
+              color: isFilterActive ? FTheme.of(context).colors.primary : null,
+            ),
+            onPress: _showFilterSortDialog,
+          ),
+          FHeaderAction(
+            icon: const Icon(FLucideIcons.lightbulb),
+            onPress: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
+            ),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final size = (constraints.maxWidth < constraints.maxHeight
+                      ? constraints.maxWidth * 0.8
+                      : constraints.maxHeight * 0.8)
+                  .clamp(0.0, 400.0);
+              return SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        Text(
+                          _getModeLabel(),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: size * 0.1,
+                            color: _getTimerColor(context),
                           ),
+                        ),
+                        if (_timerMode == TimerMode.work) ...[
+                          const SizedBox(height: 8),
                           Text(
-                            '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                            'Session ${(_sessionsCompleted % settingsController.sessionsUntilLongBreak) + 1} of ${settingsController.sessionsUntilLongBreak}',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: size * 0.2,
+                              fontSize: size * 0.05,
+                              color: FTheme.of(context).colors.mutedForeground,
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    if (_timer == null)
-                      SizedBox(
-                        width: size * 0.9,
-                        child: FButton(
-                          onPress: _startTimer,
-                          suffix: const Icon(FLucideIcons.play),
-                          child: const Text('Start'),
-                        ),
-                      )
-                    else ...[
-                      SizedBox(
-                        width: size * 0.9,
-                        child: FButton(
-                          onPress: _togglePause,
-                          suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
-                          child: Text(_isPaused ? 'Resume' : 'Pause'),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: size * 0.9,
-                        child: FButton(
-                          variant: FButtonVariant.outline,
-                          onPress: _finishSession,
-                          suffix: const Icon(FLucideIcons.squareStop),
-                          child: const Text('Stop'),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 40),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: todosAsync.when(
-                        data: (todos) {
-                          final pendingTodos = todos.where((t) => t.todo.status != TodoStatus.done).toList();
-                          final doneTodos = todos.where((t) => t.todo.status == TodoStatus.done).toList();
-                          
-                          if (pendingTodos.isEmpty && doneTodos.isEmpty) {
-                            return const SizedBox();
-                          }
-                          
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 20),
+                        if (_focusedTodo != null) ...[
+                          Text(
+                            _focusedTodo!.title,
+                            style: FTheme.of(context).typography.body.lg.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        SizedBox(
+                          width: size,
+                          height: size,
+                          child: Stack(
+                            alignment: Alignment.center,
                             children: [
-                              if (pendingTodos.isNotEmpty) ...[
-                                Text(
-                                  'PENDING',
-                                  style: FTheme.of(context).typography.body.sm.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: FTheme.of(context).colors.mutedForeground,
-                                      ),
+                              SizedBox.expand(
+                                child: CircularProgressIndicator(
+                                  value: _timeLeft / (_currentDurationMinutes * 60),
+                                  strokeWidth: size * 0.05,
+                                  backgroundColor: FTheme.of(context).colors.border,
+                                  valueColor: AlwaysStoppedAnimation(_getTimerColor(context)),
                                 ),
-                                const SizedBox(height: 8),
-                                ReorderableListView.builder(
-                                  buildDefaultDragHandles: false,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: pendingTodos.length,
-                                  onReorderItem: (oldIndex, newIndex) {
-                                    final item = pendingTodos.removeAt(oldIndex);
-                                    pendingTodos.insert(newIndex, item);
-                                    ref.read(todosDaoProvider).updatePositions(
-                                          pendingTodos.map((t) => t.todo.id).toList(),
-                                        );
-                                  },
-                                  itemBuilder: (context, index) {
-                                    final item = pendingTodos[index];
-                                    final isFocused = _focusedTodo?.id == item.todo.id;
-                                    return Container(
-                                      key: ValueKey(item.todo.id),
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: index < pendingTodos.length - 1
-                                              ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
-                                              : BorderSide.none,
-                                        ),
-                                      ),
-                                      child: FTile(
-                                        selected: isFocused,
-                                        onPress: () => Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => TodoDetailsPage(
-                                              todo: item.todo,
-                                              tags: item.tags,
-                                              onFocus: (t) => setState(() => _focusedTodo = t),
-                                            ),
-                                          ),
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Row(
-                                                children: [
-                                                  if (item.todo.priority != null && item.todo.priority != 2) ...[
-                                                    PriorityBadge(priority: item.todo.priority!),
-                                                    const SizedBox(width: 8),
-                                                  ],
-                                                  Expanded(child: Text(item.todo.title)),
-                                                ],
-                                              ),
-                                            ),
-                                            StreamBuilder<int>(
-                                              stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
-                                              builder: (context, snapshot) {
-                                                final count = snapshot.data ?? 0;
-                                                if (count == 0) return const SizedBox();
-                                                return Padding(
-                                                  padding: const EdgeInsets.only(left: 8),
-                                                  child: FBadge(
-                                                    variant: FBadgeVariant.secondary,
-                                                    child: Text('$count 🍅'),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (item.todo.dueAt != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      FLucideIcons.calendar,
-                                                      size: 14,
-                                                      color: item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
-                                                          ? Colors.red
-                                                          : FTheme.of(context).colors.mutedForeground,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
-                                                      style: FTheme.of(context).typography.body.xs.copyWith(
-                                                            color: item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
-                                                                ? Colors.red
-                                                                : FTheme.of(context).colors.mutedForeground,
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (item.tags.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Wrap(
-                                                  spacing: 4,
-                                                  runSpacing: 4,
-                                                  children: item.tags
-                                                      .map((tag) => TagBadge(tag: tag))
-                                                  .toList(),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        prefix: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ReorderableDragStartListener(
-                                              index: index,
-                                              child: const Padding(
-                                                padding: EdgeInsets.only(right: 8),
-                                                child: Icon(FLucideIcons.gripVertical, size: 20),
-                                              ),
-                                            ),
-                                            GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () => _toggleTodoStatus(item.todo, true),
-                                              child: FCheckbox(
-                                                value: false,
-                                                onChange: (value) => _toggleTodoStatus(item.todo, value),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        suffix: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => setState(() => _focusedTodo = item.todo),
-                                              child: Icon(
-                                                FLucideIcons.target,
-                                                color: isFocused ? FTheme.of(context).colors.primary : null,
-                                              ),
-                                            ),
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (context) => AddEntryPage(
-                                                    type: EntryType.todo,
-                                                    todo: item.todo,
-                                                    initialTags: item.tags,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: const Icon(FLucideIcons.pencil),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
+                              ),
+                              Text(
+                                '${(_timeLeft ~/ 60).toString().padLeft(2, '0')}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: size * 0.2,
                                 ),
-                                const SizedBox(height: 24),
-                              ],
-                              if (doneTodos.isNotEmpty) ...[
-                                Text(
-                                  'DONE',
-                                  style: FTheme.of(context).typography.body.sm.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: FTheme.of(context).colors.mutedForeground,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                ReorderableListView.builder(
-                                  buildDefaultDragHandles: false,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: doneTodos.length,
-                                  onReorderItem: (oldIndex, newIndex) {
-                                    final item = doneTodos.removeAt(oldIndex);
-                                    doneTodos.insert(newIndex, item);
-                                    ref.read(todosDaoProvider).updatePositions(
-                                          doneTodos.map((t) => t.todo.id).toList(),
-                                        );
-                                  },
-                                  itemBuilder: (context, index) {
-                                    final item = doneTodos[index];
-                                    final isFocused = _focusedTodo?.id == item.todo.id;
-                                    return Container(
-                                      key: ValueKey(item.todo.id),
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: index < doneTodos.length - 1
-                                              ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
-                                              : BorderSide.none,
-                                        ),
-                                      ),
-                                      child: FTile(
-                                        selected: isFocused,
-                                        onPress: () => Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => TodoDetailsPage(
-                                              todo: item.todo,
-                                              tags: item.tags,
-                                              onFocus: (t) => setState(() => _focusedTodo = t),
-                                            ),
-                                          ),
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Row(
-                                                children: [
-                                                  if (item.todo.priority != null && item.todo.priority != 2) ...[
-                                                    PriorityBadge(
-                                                      priority: item.todo.priority!,
-                                                      isDone: true,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                  ],
-                                                  Expanded(
-                                                    child: Text(
-                                                      item.todo.title,
-                                                      style: const TextStyle(
-                                                        decoration: TextDecoration.lineThrough,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            StreamBuilder<int>(
-                                              stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
-                                              builder: (context, snapshot) {
-                                                final count = snapshot.data ?? 0;
-                                                if (count == 0) return const SizedBox();
-                                                return Padding(
-                                                  padding: const EdgeInsets.only(left: 8),
-                                                  child: FBadge(
-                                                    variant: FBadgeVariant.outline,
-                                                    child: Text('$count 🍅'),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (item.todo.dueAt != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      FLucideIcons.calendar,
-                                                      size: 14,
-                                                      color: FTheme.of(context).colors.mutedForeground,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
-                                                      style: FTheme.of(context).typography.body.xs.copyWith(
-                                                            color: FTheme.of(context).colors.mutedForeground,
-                                                            decoration: TextDecoration.lineThrough,
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (item.tags.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Wrap(
-                                                  spacing: 4,
-                                                  runSpacing: 4,
-                                                  children: item.tags
-                                                      .map((tag) => TagBadge(
-                                                            tag: tag,
-                                                            variant: FBadgeVariant.outline,
-                                                          ))
-                                                      .toList(),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        prefix: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ReorderableDragStartListener(
-                                              index: index,
-                                              child: const Padding(
-                                                padding: EdgeInsets.only(right: 8),
-                                                child: Icon(FLucideIcons.gripVertical, size: 20),
-                                              ),
-                                            ),
-                                            GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () => _toggleTodoStatus(item.todo, false),
-                                              child: FCheckbox(
-                                                value: true,
-                                                onChange: (value) => _toggleTodoStatus(item.todo, value),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        suffix: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => setState(() => _focusedTodo = item.todo),
-                                              child: Icon(
-                                                FLucideIcons.target,
-                                                color: isFocused ? FTheme.of(context).colors.primary : null,
-                                              ),
-                                            ),
-                                            FButton.icon(
-                                              variant: FButtonVariant.ghost,
-                                              size: FButtonSizeVariant.sm,
-                                              onPress: () => Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (context) => AddEntryPage(
-                                                    type: EntryType.todo,
-                                                    todo: item.todo,
-                                                    initialTags: item.tags,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: const Icon(FLucideIcons.pencil),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
+                              ),
                             ],
-                          );
-                        },
-                        loading: () => const Center(child: CircularProgressIndicator()),
-                        error: (err, stack) => Text('Error: $err'),
-                      ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        if (_timer == null)
+                          SizedBox(
+                            width: size * 0.9,
+                            child: FButton(
+                              onPress: _startTimer,
+                              suffix: const Icon(FLucideIcons.play),
+                              child: const Text('Start'),
+                            ),
+                          )
+                        else ...[
+                          SizedBox(
+                            width: size * 0.9,
+                            child: FButton(
+                              onPress: _togglePause,
+                              suffix: Icon(_isPaused ? FLucideIcons.play : FLucideIcons.pause),
+                              child: Text(_isPaused ? 'Resume' : 'Pause'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: size * 0.9,
+                            child: FButton(
+                              variant: FButtonVariant.outline,
+                              onPress: _finishSession,
+                              suffix: const Icon(FLucideIcons.squareStop),
+                              child: const Text('Stop'),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 40),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: todosAsync.when(
+                            data: (todos) {
+                              var filteredTodos = todos;
+                              if (_selectedTagIds.isNotEmpty) {
+                                filteredTodos = todos
+                                    .where((t) => t.tags.any((tag) => _selectedTagIds.contains(tag.id)))
+                                    .toList();
+                              }
+
+                              if (_sortOption == SortOption.priority) {
+                                filteredTodos.sort((a, b) {
+                                  final pa = a.todo.priority ?? 2;
+                                  final pb = b.todo.priority ?? 2;
+                                  return pb.compareTo(pa); // High (3) > Medium (2) > Low (1)
+                                });
+                              }
+
+                              final pendingTodos =
+                                  filteredTodos.where((t) => t.todo.status != TodoStatus.done).toList();
+                              final doneTodos =
+                                  filteredTodos.where((t) => t.todo.status == TodoStatus.done).toList();
+
+                              if (pendingTodos.isEmpty && doneTodos.isEmpty) {
+                                if (isFilterActive) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(32.0),
+                                      child: Text(
+                                        'No todos match your filters.',
+                                        style: TextStyle(color: FTheme.of(context).colors.mutedForeground),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox();
+                              }
+
+                              return FAccordion(
+                                control: FAccordionControl.lifted(
+                                  expanded: (index) => _expandedIndices.contains(index),
+                                  onChange: (index, expanded) => setState(() {
+                                    if (expanded) {
+                                      _expandedIndices.add(index);
+                                    } else {
+                                      _expandedIndices.remove(index);
+                                    }
+                                  }),
+                                ),
+                                children: [
+                                  FAccordionItem(
+                                    title: Text(
+                                      'PENDING (${pendingTodos.length})',
+                                      style: FTheme.of(context).typography.body.sm.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: FTheme.of(context).colors.mutedForeground,
+                                          ),
+                                    ),
+                                    child: _buildTodoList(pendingTodos, isPending: true),
+                                  ),
+                                  FAccordionItem(
+                                    title: Text(
+                                      'DONE (${doneTodos.length})',
+                                      style: FTheme.of(context).typography.body.sm.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: FTheme.of(context).colors.mutedForeground,
+                                          ),
+                                    ),
+                                    child: _buildTodoList(doneTodos, isPending: false),
+                                  ),
+                                ],
+                              );
+                            },
+                            loading: () => const Center(child: CircularProgressIndicator()),
+                            error: (err, stack) => Text('Error: $err'),
+                          ),
+                        ),
+                        const SizedBox(height: 80), // Bottom padding for FAB
+                      ],
                     ),
-                    const SizedBox(height: 80), // Bottom padding for FAB
-                  ],
+                  ),
+                ),
+              );
+            },
+          ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FButton.icon(
+              onPress: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.todo)),
+              ),
+              child: const Icon(FLucideIcons.plus),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodoList(List<TodoWithTags> todos, {required bool isPending}) {
+    if (todos.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: Text(
+            isPending ? 'No pending todos' : 'No completed todos',
+            style: TextStyle(color: FTheme.of(context).colors.mutedForeground),
+          ),
+        ),
+      );
+    }
+
+    return ReorderableListView.builder(
+      buildDefaultDragHandles: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: todos.length,
+      onReorderItem: (oldIndex, newIndex) {
+        if (_sortOption != SortOption.manual) return;
+        final item = todos.removeAt(oldIndex);
+        todos.insert(newIndex, item);
+        ref.read(todosDaoProvider).updatePositions(
+              todos.map((t) => t.todo.id).toList(),
+            );
+      },
+      itemBuilder: (context, index) {
+        final item = todos[index];
+        final isFocused = _focusedTodo?.id == item.todo.id;
+        return Container(
+          key: ValueKey(item.todo.id),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: index < todos.length - 1
+                  ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
+                  : BorderSide.none,
+            ),
+          ),
+          child: FTile(
+            selected: isFocused,
+            onPress: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => TodoDetailsPage(
+                  todo: item.todo,
+                  tags: item.tags,
+                  onFocus: (t) => setState(() => _focusedTodo = t),
                 ),
               ),
             ),
-          );
-        },
+            title: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (item.todo.priority != null && item.todo.priority != 2) ...[
+                        PriorityBadge(
+                          priority: item.todo.priority!,
+                          isDone: !isPending,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          item.todo.title,
+                          style: isPending
+                              ? null
+                              : const TextStyle(
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                StreamBuilder<int>(
+                  stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    if (count == 0) return const SizedBox();
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: FBadge(
+                        variant: isPending ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                        child: Text('$count 🍅'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.todo.dueAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          FLucideIcons.calendar,
+                          size: 14,
+                          color: isPending && item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
+                              ? Colors.red
+                              : FTheme.of(context).colors.mutedForeground,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${item.todo.dueAt!.year}-${item.todo.dueAt!.month.toString().padLeft(2, '0')}-${item.todo.dueAt!.day.toString().padLeft(2, '0')}',
+                          style: FTheme.of(context).typography.body.xs.copyWith(
+                                color: isPending &&
+                                        item.todo.dueAt!.isBefore(DateTime.now().subtract(const Duration(days: 1)))
+                                    ? Colors.red
+                                    : FTheme.of(context).colors.mutedForeground,
+                                decoration: isPending ? null : TextDecoration.lineThrough,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (item.tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: item.tags
+                          .map((tag) => TagBadge(
+                                tag: tag,
+                                variant: isPending ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                              ))
+                          .toList(),
+                    ),
+                  ),
+              ],
+            ),
+            prefix: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_sortOption == SortOption.manual)
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Icon(FLucideIcons.gripVertical, size: 20),
+                    ),
+                  ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _toggleTodoStatus(item.todo, isPending),
+                  child: FCheckbox(
+                    value: !isPending,
+                    onChange: (value) => _toggleTodoStatus(item.todo, value),
+                  ),
+                ),
+              ],
+            ),
+            suffix: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FButton.icon(
+                  variant: FButtonVariant.ghost,
+                  size: FButtonSizeVariant.sm,
+                  onPress: () => setState(() => _focusedTodo = item.todo),
+                  child: Icon(
+                    FLucideIcons.target,
+                    color: isFocused ? FTheme.of(context).colors.primary : null,
+                  ),
+                ),
+                FButton.icon(
+                  variant: FButtonVariant.ghost,
+                  size: FButtonSizeVariant.sm,
+                  onPress: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AddEntryPage(
+                        type: EntryType.todo,
+                        todo: item.todo,
+                        initialTags: item.tags,
+                      ),
+                    ),
+                  ),
+                  child: const Icon(FLucideIcons.pencil),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -727,7 +735,7 @@ class PriorityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = switch (priority) {
       1 => Colors.blue[300], // Low
-      3 => Colors.red[300],  // High
+      3 => Colors.red[300], // High
       _ => null,
     };
 
