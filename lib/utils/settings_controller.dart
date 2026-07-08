@@ -9,6 +9,8 @@ enum InitialPage { todos, tasks, trackers }
 
 enum UserMode { focused, standard, powerUser }
 
+enum EditorType { markdown, wysiwyg }
+
 class SettingsController extends ChangeNotifier {
   SettingsDao? _dao;
   final _secureStorage = const FlutterSecureStorage();
@@ -21,7 +23,8 @@ class SettingsController extends ChangeNotifier {
   bool _autoStartBreaks = false;
   bool _autoStartWork = false;
   InitialPage _initialPage = InitialPage.todos;
-  UserMode _userMode = UserMode.standard;
+  UserMode _userMode = UserMode.focused;
+  EditorType _editorType = EditorType.markdown;
   int _startOfWeek = DateTime.monday;
   String _syncServerAddress = '';
   bool _webDavEnabled = false;
@@ -38,6 +41,7 @@ class SettingsController extends ChangeNotifier {
   bool get autoStartWork => _autoStartWork;
   InitialPage get initialPage => _initialPage;
   UserMode get userMode => _userMode;
+  EditorType get editorType => _editorType;
   int get startOfWeek => _startOfWeek;
   String get syncServerAddress => _syncServerAddress;
   bool get webDavEnabled => _webDavEnabled;
@@ -88,7 +92,15 @@ class SettingsController extends ChangeNotifier {
     if (userModeStr != null) {
       _userMode = UserMode.values.firstWhere(
         (e) => e.name == userModeStr,
-        orElse: () => UserMode.standard,
+        orElse: () => UserMode.focused,
+      );
+    }
+
+    final editorTypeStr = await _dao!.getString('editorType');
+    if (editorTypeStr != null) {
+      _editorType = EditorType.values.firstWhere(
+        (e) => e.name == editorTypeStr,
+        orElse: () => EditorType.markdown,
       );
     }
 
@@ -151,6 +163,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setEditorType(EditorType type) {
+    if (_editorType == type) return;
+    _editorType = type;
+    _dao?.setString('editorType', type.name);
+    notifyListeners();
+  }
+
   void setStartOfWeek(int day) {
     if (_startOfWeek == day) return;
     _startOfWeek = day;
@@ -210,7 +229,8 @@ class SettingsController extends ChangeNotifier {
     _autoStartBreaks = false;
     _autoStartWork = false;
     _initialPage = InitialPage.todos;
-    _userMode = UserMode.standard;
+    _userMode = UserMode.focused;
+    _editorType = EditorType.markdown;
     _startOfWeek = DateTime.monday;
     _syncServerAddress = '';
     _webDavEnabled = false;

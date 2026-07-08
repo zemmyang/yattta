@@ -5,8 +5,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
-import 'package:drift/drift.dart' as drift;
-import 'add_tracker.dart';
+import 'package:yattta/presentation/pages/add_tracker.dart';
+import 'package:yattta/presentation/widgets/note_renderer.dart';
+import 'unified_text_entry.dart';
 
 class TrackerDetailsPage extends ConsumerStatefulWidget {
   final Tracker tracker;
@@ -114,7 +115,7 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                       ),
                 ),
                 const SizedBox(height: 8),
-                Text(widget.tracker.notes!),
+                NoteRenderer(note: widget.tracker.notes),
                 const SizedBox(height: 24),
               ],
               SizedBox(
@@ -196,7 +197,6 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                   }),
                 ),
                 children: monthKeys.asMap().entries.map((entry) {
-                  final index = entry.key;
                   final monthKey = entry.value;
                   final logsInMonth = groupedLogs[monthKey]!;
 
@@ -212,16 +212,37 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                           padding: const EdgeInsets.only(bottom: 8.0),
                           child: FTile(
                             title: Text('$displayValue ${widget.tracker.unit ?? ''}'),
-                            subtitle: Text(
-                              '${log.loggedAt.year}-${log.loggedAt.month.toString().padLeft(2, '0')}-${log.loggedAt.day.toString().padLeft(2, '0')} '
-                              '${log.loggedAt.hour.toString().padLeft(2, '0')}:${log.loggedAt.minute.toString().padLeft(2, '0')}',
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${log.loggedAt.year}-${log.loggedAt.month.toString().padLeft(2, '0')}-${log.loggedAt.day.toString().padLeft(2, '0')} '
+                                  '${log.loggedAt.hour.toString().padLeft(2, '0')}:${log.loggedAt.minute.toString().padLeft(2, '0')}',
+                                ),
+                                if (log.notes != null && log.notes!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  NoteRenderer(
+                                    note: log.notes,
+                                    isPreview: true,
+                                    maxLines: 1,
+                                    style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                                  ),
+                                ],
+                              ],
                             ),
                             suffix: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 FButton.icon(
                                   variant: FButtonVariant.ghost,
-                                  onPress: () => _editLog(context, ref, log),
+                                  onPress: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => UnifiedTextEntryPage.trackerLog(
+                                        tracker: widget.tracker,
+                                        trackerLog: log,
+                                      ),
+                                    ),
+                                  ),
                                   child: const Icon(FLucideIcons.pencil),
                                 ),
                                 FButton.icon(
@@ -251,84 +272,6 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return months[month - 1];
-  }
-
-  void _editLog(BuildContext context, WidgetRef ref, TrackerLog log) async {
-    final initialValue = widget.tracker.valueType == TrackerValueType.integer
-      ? log.value.toInt().toString() 
-      : log.value.toString();
-      
-    final valueController = TextEditingController(text: initialValue);
-    DateTime selectedDate = log.loggedAt;
-
-    await showFDialog(
-      context: context,
-      builder: (context, style, animation) => FDialog(
-        animation: animation,
-        title: const Text('Edit Log'),
-        body: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FTextField(
-              label: const Text('Value'),
-              control: FTextFieldControl.managed(controller: valueController),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 16),
-            FButton(
-              variant: FButtonVariant.outline,
-              onPress: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                );
-                if (date != null && context.mounted) {
-                  final time = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.fromDateTime(selectedDate),
-                  );
-                  if (time != null) {
-                    selectedDate = DateTime(
-                      date.year,
-                      date.month,
-                      date.day,
-                      time.hour,
-                      time.minute,
-                    );
-                  }
-                }
-              },
-              child: const Text('Change Date/Time'),
-            ),
-          ],
-        ),
-        actions: [
-          FButton(
-            onPress: () async {
-              final value = double.tryParse(valueController.text);
-              if (value != null) {
-                await ref.read(trackersDaoProvider).updateLog(
-                      TrackerLogsCompanion(
-                        id: drift.Value(log.id),
-                        value: drift.Value(value),
-                        loggedAt: drift.Value(selectedDate),
-                      ),
-                    );
-                if (context.mounted) Navigator.of(context).pop();
-              }
-            },
-            child: const Text('Save'),
-          ),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _deleteLog(BuildContext context, WidgetRef ref, TrackerLog log) async {

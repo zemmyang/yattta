@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
-import 'package:yattta/presentation/pages/brain_dump_dialogs.dart';
+import 'package:yattta/presentation/pages/unified_text_entry.dart';
+import 'package:yattta/presentation/widgets/note_renderer.dart';
 
 class BrainDumpsPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -27,7 +28,9 @@ class BrainDumpsPage extends ConsumerWidget {
         suffixes: [
           FHeaderAction(
             icon: const Icon(FLucideIcons.plus),
-            onPress: () => showBrainDumpDialog(context, ref),
+            onPress: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
+            ),
           ),
         ],
       ),
@@ -43,13 +46,15 @@ class BrainDumpsPage extends ConsumerWidget {
             itemBuilder: (context, index) {
               final note = notes[index];
               return GestureDetector(
-                onTap: () => showBrainDumpDialog(context, ref, existingNote: note),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => UnifiedTextEntryPage.brainDump(brainDump: note)),
+                ),
                 behavior: HitTestBehavior.opaque,
                 child: FTile(
-                  title: Text(
-                    note.note,
+                  title: NoteRenderer(
+                    note: note.note,
+                    isPreview: true,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: note.isReviewed
                         ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
                         : null,

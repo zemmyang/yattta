@@ -6,6 +6,7 @@ import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_task.dart';
+import 'package:yattta/presentation/widgets/note_renderer.dart';
 
 class TaskDetailsPage extends ConsumerWidget {
   final Task task;
@@ -66,7 +67,7 @@ class TaskDetailsPage extends ConsumerWidget {
                   ),
             ),
             const SizedBox(height: 8),
-            Text(task.notes!),
+            NoteRenderer(note: task.notes),
             const SizedBox(height: 24),
           ],
           if (tags.isNotEmpty) ...[

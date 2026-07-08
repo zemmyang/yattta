@@ -74,6 +74,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           },
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      FSelect<EditorType>(
+                        label: const Text('Editor Type'),
+                        description: const Text('Select the default editor for notes'),
+                        hint: 'Select type',
+                        items: const {
+                          'Markdown (Standard)': EditorType.markdown,
+                          'WYSIWYG (Quill)': EditorType.wysiwyg,
+                        },
+                        control: FSelectControl.lifted(
+                          value: settingsController.editorType,
+                          onChange: (value) {
+                            if (value != null) {
+                              settingsController.setEditorType(value);
+                            }
+                          },
+                        ),
+                      ),
                       if (settingsController.userMode != UserMode.focused) ...[
                         const SizedBox(height: 16),
                         FSelect<InitialPage>(

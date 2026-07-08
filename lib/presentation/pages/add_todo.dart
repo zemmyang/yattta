@@ -8,6 +8,8 @@ import 'package:yattta/utils/settings_controller.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
+import 'package:yattta/presentation/widgets/note_editor.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:yattta/domain/sync/parsed_models.dart';
 
 class AddTodoPage extends ConsumerStatefulWidget {
@@ -23,6 +25,7 @@ class AddTodoPage extends ConsumerStatefulWidget {
 class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
+  late final QuillController _quillController;
   final _workDurationController = TextEditingController();
   final _breakDurationController = TextEditingController();
   final _selectedTagIds = <String>{};
@@ -32,6 +35,10 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   @override
   void initState() {
     super.initState();
+    _quillController = QuillController(
+      document: loadNoteToDocument(widget.todo?.notes),
+      selection: const TextSelection.collapsed(offset: 0),
+    );
     if (widget.todo != null) {
       _titleController.text = widget.todo!.title;
       _notesController.text = widget.todo!.notes ?? '';
@@ -64,6 +71,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
   void dispose() {
     _titleController.dispose();
     _notesController.dispose();
+    _quillController.dispose();
     _workDurationController.dispose();
     _breakDurationController.dispose();
     super.dispose();
@@ -80,7 +88,7 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
     await todosDao.upsert(TodosCompanion(
       id: drift.Value(todoId),
       title: drift.Value(title),
-      notes: drift.Value(_notesController.text.trim()),
+      notes: drift.Value(getNoteFromEditor(_notesController, _quillController)),
       status: drift.Value(widget.todo?.status ?? TodoStatus.pending),
       dueAt: drift.Value(_selectedDueDate),
       priority: drift.Value(_fromParsedPriority(_selectedPriority)),
@@ -163,11 +171,12 @@ class _AddTodoPageState extends ConsumerState<AddTodoPage> {
               control: FTextFieldControl.managed(controller: _titleController),
             ),
             const SizedBox(height: 24),
-            FTextField(
-              label: const Text('Notes'),
+            NoteEditor(
+              label: 'Notes',
               hint: 'Add more details...',
+              textController: _notesController,
+              quillController: _quillController,
               maxLines: 5,
-              control: FTextFieldControl.managed(controller: _notesController),
             ),
             const SizedBox(height: 24),
             Row(

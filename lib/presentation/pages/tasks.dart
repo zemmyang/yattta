@@ -7,6 +7,7 @@ import 'package:yattta/presentation/pages/add_task.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:yattta/data/converters/enum_converters.dart';
+import 'package:yattta/presentation/pages/unified_text_entry.dart';
 import 'package:yattta/presentation/pages/task_details.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 
@@ -240,7 +241,11 @@ class TasksPage extends ConsumerWidget {
           const SizedBox(width: 4),
           FButton.icon(
             variant: FButtonVariant.ghost,
-            onPress: () => _showNotesDialog(context, ref, task, log),
+            onPress: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => UnifiedTextEntryPage.taskNotes(task: task, taskLog: log),
+              ),
+            ),
             child: Icon(
               FLucideIcons.notebookPen,
               color: log?.notes != null && log!.notes!.isNotEmpty ? FTheme.of(context).colors.primary : null,
@@ -305,55 +310,5 @@ class TasksPage extends ConsumerWidget {
       createdAt: drift.Value(log?.createdAt ?? DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
     ));
-  }
-
-  Future<void> _showNotesDialog(BuildContext context, WidgetRef ref, Task task, TaskLog? log) async {
-    final controller = TextEditingController(text: log?.notes);
-    await showFDialog(
-      context: context,
-      builder: (context, style, animation) => FDialog(
-        title: const Text('Task Notes'),
-        body: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Notes for ${task.title}', style: FTheme.of(context).typography.body.sm),
-            const SizedBox(height: 8),
-            FTextField(
-              hint: 'What happened today?',
-              control: FTextFieldControl.managed(controller: controller),
-              maxLines: 5,
-            ),
-          ],
-        ),
-        actions: [
-          FButton(
-            onPress: () => Navigator.of(context).pop(),
-            variant: FButtonVariant.ghost,
-            child: const Text('Cancel'),
-          ),
-          FButton(
-            onPress: () async {
-              final tasksDao = ref.read(tasksDaoProvider);
-              final now = DateTime.now();
-              final today = DateTime(now.year, now.month, now.day);
-              final logId = log?.id ?? const Uuid().v4();
-              
-              await tasksDao.logOccurrence(TaskLogsCompanion(
-                id: drift.Value(logId),
-                taskId: drift.Value(task.id),
-                status: drift.Value(log?.status ?? TaskLogStatus.notDone),
-                triggeredAt: drift.Value(log?.triggeredAt ?? today),
-                notes: drift.Value(controller.text.trim()),
-                createdAt: drift.Value(log?.createdAt ?? DateTime.now()),
-                updatedAt: drift.Value(DateTime.now()),
-              ));
-              if (context.mounted) Navigator.of(context).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
   }
 }

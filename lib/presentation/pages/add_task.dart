@@ -9,6 +9,8 @@ import 'package:drift/drift.dart' as drift;
 import 'package:yattta/domain/models/recurrence_rule.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/reminder_dialogs.dart';
+import 'package:yattta/presentation/widgets/note_editor.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 class AddTaskPage extends ConsumerStatefulWidget {
   final Task? task;
@@ -28,14 +30,21 @@ class AddTaskPage extends ConsumerStatefulWidget {
 
 class _AddTaskPageState extends ConsumerState<AddTaskPage> {
   final _titleController = TextEditingController();
+  final _notesController = TextEditingController();
+  late final QuillController _quillController;
   final List<ReminderData> _reminders = [];
   final Set<String> _selectedTagIds = {};
 
   @override
   void initState() {
     super.initState();
+    _quillController = QuillController(
+      document: loadNoteToDocument(widget.task?.notes),
+      selection: const TextSelection.collapsed(offset: 0),
+    );
     if (widget.task != null) {
       _titleController.text = widget.task!.title;
+      _notesController.text = widget.task!.notes ?? '';
       if (widget.initialReminders != null) {
         _reminders.addAll(widget.initialReminders!.map((r) => ReminderData(
           remindAt: r.remindAt,
@@ -51,6 +60,8 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
   @override
   void dispose() {
     _titleController.dispose();
+    _notesController.dispose();
+    _quillController.dispose();
     super.dispose();
   }
 
@@ -78,6 +89,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
     await tasksDao.upsert(TasksCompanion(
       id: drift.Value(taskId),
       title: drift.Value(title),
+      notes: drift.Value(getNoteFromEditor(_notesController, _quillController)),
       isActive: drift.Value(widget.task?.isActive ?? true),
       createdAt: drift.Value(widget.task?.createdAt ?? DateTime.now()),
       updatedAt: drift.Value(DateTime.now()),
@@ -176,6 +188,14 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               label: const Text('Task Title'),
               hint: 'What needs to be done?',
               control: FTextFieldControl.managed(controller: _titleController),
+            ),
+            const SizedBox(height: 24),
+            NoteEditor(
+              label: 'Notes',
+              hint: 'Add more details...',
+              textController: _notesController,
+              quillController: _quillController,
+              maxLines: 5,
             ),
             const SizedBox(height: 24),
             Row(

@@ -8,6 +8,7 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_todo.dart';
 import 'package:yattta/presentation/pages/todos.dart';
+import 'package:yattta/presentation/widgets/note_renderer.dart';
 
 class TodoDetailsPage extends ConsumerWidget {
   final Todo todo;
@@ -80,7 +81,7 @@ class TodoDetailsPage extends ConsumerWidget {
                   ),
             ),
             const SizedBox(height: 8),
-            Text(todo.notes!),
+            NoteRenderer(note: todo.notes),
             const SizedBox(height: 24),
           ],
           if (tags.isNotEmpty) ...[

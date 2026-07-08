@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/utils/notification_service.dart';
@@ -38,8 +39,14 @@ class Application extends StatelessWidget {
     return ListenableBuilder(
       listenable: themeController,
       builder: (context, _) => MaterialApp(
-        supportedLocales: FLocalizations.supportedLocales,
-        localizationsDelegates: const [...FLocalizations.localizationsDelegates],
+        supportedLocales: const [
+          ...FLocalizations.supportedLocales,
+          Locale('en'), // Quill requirement
+        ],
+        localizationsDelegates: const [
+          ...FLocalizations.localizationsDelegates,
+          FlutterQuillLocalizations.delegate,
+        ],
         theme: themeController.getTheme(Brightness.light).toApproximateMaterialTheme(),
         darkTheme: themeController.getTheme(Brightness.dark).toApproximateMaterialTheme(),
         themeMode: themeController.themeMode,

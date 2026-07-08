@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/presentation/providers/database_providers.dart';
+import 'package:yattta/presentation/widgets/note_renderer.dart';
 
 class RecycleBinPage extends ConsumerWidget {
   final VoidCallback? onMenuPressed;
@@ -10,45 +12,55 @@ class RecycleBinPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Recycle Bin'),
-        prefixes: [
-          if (onMenuPressed != null)
-            FHeaderAction(
-              icon: const Icon(FLucideIcons.menu),
-              onPress: onMenuPressed!,
-            ),
-        ],
-      ),
-      child: DefaultTabController(
-        length: 5,
-        child: Column(
-          children: [
-            const TabBar(
-              isScrollable: true,
-              tabs: [
-                Tab(text: 'Todos'),
-                Tab(text: 'Tasks'),
-                Tab(text: 'Trackers'),
-                Tab(text: 'Tags'),
-                Tab(text: 'Brain Dumps'),
+    return ListenableBuilder(
+      listenable: settingsController,
+      builder: (context, _) {
+        final showAll = settingsController.userMode != UserMode.focused;
+        final tabs = [
+          const Tab(text: 'Todos'),
+          if (showAll) const Tab(text: 'Tasks'),
+          if (showAll) const Tab(text: 'Trackers'),
+          const Tab(text: 'Tags'),
+          const Tab(text: 'Brain Dumps'),
+        ];
+        
+        final views = [
+          _DeletedTodosList(),
+          if (showAll) _DeletedTasksList(),
+          if (showAll) _DeletedTrackersList(),
+          _DeletedTagsList(),
+          _DeletedBrainDumpsList(),
+        ];
+
+        return FScaffold(
+          header: FHeader.nested(
+            title: const Text('Recycle Bin'),
+            prefixes: [
+              if (onMenuPressed != null)
+                FHeaderAction(
+                  icon: const Icon(FLucideIcons.menu),
+                  onPress: onMenuPressed!,
+                ),
+            ],
+          ),
+          child: DefaultTabController(
+            length: tabs.length,
+            child: Column(
+              children: [
+                TabBar(
+                  isScrollable: true,
+                  tabs: tabs,
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: views,
+                  ),
+                ),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _DeletedTodosList(),
-                  _DeletedTasksList(),
-                  _DeletedTrackersList(),
-                  _DeletedTagsList(),
-                  _DeletedBrainDumpsList(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -61,7 +73,8 @@ class _DeletedTodosList extends ConsumerWidget {
       data: (todos) => _buildList(
         context,
         todos.map((t) => _RecycleItem(
-              title: t.title,
+              title: Text(t.title),
+              confirmText: t.title,
               onRestore: () => ref.read(todosDaoProvider).restore(t.id),
               onDelete: () => ref.read(todosDaoProvider).hardDelete(t.id),
             )).toList(),
@@ -80,7 +93,8 @@ class _DeletedTasksList extends ConsumerWidget {
       data: (tasks) => _buildList(
         context,
         tasks.map((t) => _RecycleItem(
-              title: t.title,
+              title: Text(t.title),
+              confirmText: t.title,
               onRestore: () => ref.read(tasksDaoProvider).restore(t.id),
               onDelete: () => ref.read(tasksDaoProvider).hardDelete(t.id),
             )).toList(),
@@ -99,7 +113,8 @@ class _DeletedTrackersList extends ConsumerWidget {
       data: (trackers) => _buildList(
         context,
         trackers.map((t) => _RecycleItem(
-              title: t.title,
+              title: Text(t.title),
+              confirmText: t.title,
               onRestore: () => ref.read(trackersDaoProvider).restore(t.id),
               onDelete: () => ref.read(trackersDaoProvider).hardDelete(t.id),
             )).toList(),
@@ -118,7 +133,8 @@ class _DeletedTagsList extends ConsumerWidget {
       data: (tags) => _buildList(
         context,
         tags.map((t) => _RecycleItem(
-              title: t.name,
+              title: Text(t.name),
+              confirmText: t.name,
               onRestore: () => ref.read(tagsDaoProvider).restore(t.id),
               onDelete: () => ref.read(tagsDaoProvider).hardDelete(t.id),
             )).toList(),
@@ -137,7 +153,8 @@ class _DeletedBrainDumpsList extends ConsumerWidget {
       data: (notes) => _buildList(
         context,
         notes.map((n) => _RecycleItem(
-              title: n.note,
+              title: NoteRenderer(note: n.note, isPreview: true, maxLines: 1),
+              confirmText: 'Brain Dump',
               onRestore: () => ref.read(brainDumpsDaoProvider).restore(n.id),
               onDelete: () => ref.read(brainDumpsDaoProvider).hardDelete(n.id),
             )).toList(),
@@ -161,12 +178,14 @@ Widget _buildList(BuildContext context, List<_RecycleItem> items) {
 }
 
 class _RecycleItem extends StatelessWidget {
-  final String title;
+  final Widget title;
+  final String confirmText;
   final VoidCallback onRestore;
   final VoidCallback onDelete;
 
   const _RecycleItem({
     required this.title,
+    required this.confirmText,
     required this.onRestore,
     required this.onDelete,
   });
@@ -174,7 +193,7 @@ class _RecycleItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FTile(
-      title: Text(title),
+      title: title,
       suffix: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -197,8 +216,9 @@ class _RecycleItem extends StatelessWidget {
     final confirm = await showFDialog<bool>(
       context: context,
       builder: (context, style, animation) => FDialog(
+        animation: animation,
         title: const Text('Permanent Delete'),
-        body: Text('Are you sure you want to permanently delete "$title"? This action cannot be undone.'),
+        body: Text('Are you sure you want to permanently delete "$confirmText"? This action cannot be undone.'),
         actions: [
           FButton(
             onPress: () => Navigator.of(context).pop(false),

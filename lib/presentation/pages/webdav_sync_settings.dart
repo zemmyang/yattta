@@ -116,7 +116,7 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
         const SizedBox(height: 12),
         const Text('Sync Frequency'),
         DropdownButtonFormField<int>(
-          value: settings.syncFrequency,
+          initialValue: settings.syncFrequency,
           items: const [
             DropdownMenuItem(value: 0, child: Text('Manual Only')),
             DropdownMenuItem(value: 15, child: Text('Every 15 minutes')),
