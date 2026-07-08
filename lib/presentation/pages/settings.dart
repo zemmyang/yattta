@@ -427,6 +427,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ),
                             FButton(
                               variant: FButtonVariant.outline,
+                              child: const Text('Seed + 90 Days Activity'),
+                              onPress: () async {
+                                final navigator = Navigator.of(context);
+                                await DataSeeder(db).seed(massiveSessions: true);
+                                if (context.mounted) {
+                                  navigator.pop();
+                                  showFToast(
+                                    context: context,
+                                    title: const Text('Massive Data Seeded Successfully'),
+                                  );
+                                }
+                              },
+                            ),
+                            FButton(
+                              variant: FButtonVariant.outline,
                               child: const Text('Cancel'),
                               onPress: () => Navigator.of(context).pop(),
                             ),

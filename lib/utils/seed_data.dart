@@ -12,7 +12,7 @@ class DataSeeder {
 
   DataSeeder(this.db);
 
-  Future<void> seed() async {
+  Future<void> seed({bool massiveSessions = false}) async {
     // 1. Tags
     final tags = await _seedTags();
 
@@ -29,7 +29,7 @@ class DataSeeder {
     await _seedBrainDumps(tags);
 
     // 6. Pomodoro Sessions
-    await _seedPomodoroSessions();
+    await _seedPomodoroSessions(massive: massiveSessions);
 
     // 7. Settings
     await _seedSettings();
@@ -334,13 +334,36 @@ class DataSeeder {
     ));
   }
 
-  Future<void> _seedPomodoroSessions() async {
+  Future<void> _seedPomodoroSessions({bool massive = false}) async {
     final now = DateTime.now();
+    final todoIds = await (db.select(db.todos)..where((t) => t.deletedAt.isNull())).get().then((list) => list.map((e) => e.id).toList());
     
+    if (massive) {
+      // Seed sessions for the last 90 days
+      for (int i = 0; i < 90; i++) {
+        final day = now.subtract(Duration(days: i));
+        // Random number of sessions per day (0 to 8)
+        final sessionsCount = _random.nextInt(9);
+        for (int j = 0; j < sessionsCount; j++) {
+          final start = DateTime(day.year, day.month, day.day, 8 + _random.nextInt(12), _random.nextInt(60));
+          await db.pomodoroSessionsDao.insertSession(PomodoroSessionsCompanion.insert(
+            id: _uuid.v4(),
+            todoId: todoIds.isNotEmpty ? Value(todoIds[_random.nextInt(todoIds.length)]) : const Value.absent(),
+            durationSeconds: 1500, // 25 mins
+            startedAt: start,
+            endedAt: Value(start.add(const Duration(minutes: 25))),
+            status: PomodoroStatus.completed,
+          ));
+        }
+      }
+      return;
+    }
+
     // Some successful sessions
     for (int i = 0; i < 5; i++) {
       await db.pomodoroSessionsDao.insertSession(PomodoroSessionsCompanion.insert(
         id: _uuid.v4(),
+        todoId: todoIds.isNotEmpty ? Value(todoIds[_random.nextInt(todoIds.length)]) : const Value.absent(),
         durationSeconds: 1500, // 25 mins
         startedAt: now.subtract(Duration(hours: 2 * i + 1)),
         endedAt: Value(now.subtract(Duration(hours: 2 * i + 1)).add(const Duration(minutes: 25))),

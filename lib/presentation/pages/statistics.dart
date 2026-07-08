@@ -15,7 +15,7 @@ class StatisticsPage extends ConsumerWidget {
     final todosAsync = ref.watch(todosProvider);
     final tasksAsync = ref.watch(tasksWithTagsProvider);
     final trackersAsync = ref.watch(trackersProvider);
-    final completedSessionsAsync = ref.watch(completedTodoSessionsProvider);
+    final completedSessionsAsync = ref.watch(completedSessionsProvider);
 
     final datasets = completedSessionsAsync.maybeWhen(
       data: (sessions) {
