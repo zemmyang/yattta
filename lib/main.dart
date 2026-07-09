@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:yattta/l10n/app_localizations.dart';
 import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
 import 'package:yattta/utils/notification_service.dart';
@@ -39,11 +40,9 @@ class Application extends StatelessWidget {
     return ListenableBuilder(
       listenable: themeController,
       builder: (context, _) => MaterialApp(
-        supportedLocales: const [
-          ...FLocalizations.supportedLocales,
-          Locale('en'), // Quill requirement
-        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
           ...FLocalizations.localizationsDelegates,
           FlutterQuillLocalizations.delegate,
         ],
@@ -84,13 +83,14 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Global sync feedback
     ref.listen(syncControllerProvider, (previous, next) {
+      final l10n = AppLocalizations.of(context)!;
       if (previous?.status == SyncStatus.syncing && next.status == SyncStatus.idle) {
-        showFToast(context: context, title: const Text('Sync Successful'));
+        showFToast(context: context, title: Text(l10n.syncSuccessful));
       } else if (next.status == SyncStatus.error) {
         showFToast(
           context: context,
-          title: const Text('Sync Failed'),
-          description: Text(next.errorMessage ?? 'Unknown error'),
+          title: Text(l10n.syncFailed),
+          description: Text(next.errorMessage ?? l10n.unknownError),
           variant: FToastVariant.destructive,
         );
       }
