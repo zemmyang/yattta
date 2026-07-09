@@ -16,7 +16,7 @@ class SettingsController extends ChangeNotifier {
   final _secureStorage = const FlutterSecureStorage();
   static const _webDavPasswordKey = 'webDavPassword';
 
-  int _timerDuration = 10;
+  int _timerDuration = 25;
   int _breakDuration = 5;
   int _longBreakDuration = 15;
   int _sessionsUntilLongBreak = 4;
@@ -25,7 +25,7 @@ class SettingsController extends ChangeNotifier {
   InitialPage _initialPage = InitialPage.todos;
   UserMode _userMode = UserMode.focused;
   EditorType _editorType = EditorType.markdown;
-  int _startOfWeek = DateTime.monday;
+  int _startOfWeek = DateTime.sunday;
   String _syncServerAddress = '';
   bool _webDavEnabled = false;
   String _webDavServer = '';

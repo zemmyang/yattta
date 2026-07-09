@@ -65,9 +65,14 @@ class _AddEntryPageState extends ConsumerState<AddEntryPage> {
   void initState() {
     super.initState();
     String? initialNotes = widget.initialNotes;
-    if (widget.type == EntryType.task) initialNotes = widget.task?.notes ?? initialNotes;
-    else if (widget.type == EntryType.todo) initialNotes = widget.todo?.notes ?? initialNotes;
-    else if (widget.type == EntryType.tracker) initialNotes = widget.tracker?.notes ?? initialNotes;
+    if (widget.type == EntryType.task) {
+      initialNotes = widget.task?.notes ?? initialNotes;
+    } else if (widget.type == EntryType.todo) {
+      initialNotes = widget.todo?.notes ?? initialNotes;
+    }
+    else if (widget.type == EntryType.tracker) {
+      initialNotes = widget.tracker?.notes ?? initialNotes;
+    }
 
     _quillController = QuillController(
       document: loadNoteToDocument(initialNotes),

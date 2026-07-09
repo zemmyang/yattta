@@ -184,100 +184,44 @@ class _TodosPageState extends ConsumerState<TodosPage> {
     }
   }
 
-  void _showFilterSortDialog() {
-    showFDialog(
+  void _showFilterSortDialog() async {
+    final result = await showTagFilterDialog(
       context: context,
-      builder: (context, style, animation) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          final tagsAsync = ref.watch(tagsStreamProvider);
-          final tags = tagsAsync.value ?? [];
-
-          return FDialog(
-            title: const Text('Filter & Sort'),
-            body: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FSelect<SortOption>(
-                  label: const Text('Sort By'),
-                  hint: 'Select sorting',
-                  items: const {
-                    'Manual (Reorderable)': SortOption.manual,
-                    'Priority (High to Low)': SortOption.priority,
-                  },
-                  control: FSelectControl.lifted(
-                    value: _sortOption,
-                    onChange: (value) {
-                      if (value != null) {
-                        setState(() => _sortOption = value);
-                        setStateDialog(() {});
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Filter by Tags',
-                  style: FTheme.of(context).typography.body.sm.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: FTheme.of(context).colors.mutedForeground,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                if (tags.isEmpty)
-                  Text(
-                    'No tags available',
-                    style: FTheme.of(context).typography.body.xs.copyWith(
-                          color: FTheme.of(context).colors.mutedForeground,
-                        ),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: tags.map((tag) {
-                      final isSelected = _selectedTagIds.contains(tag.id);
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedTagIds.remove(tag.id);
-                            } else {
-                              _selectedTagIds.add(tag.id);
-                            }
-                          });
-                          setStateDialog(() {});
-                        },
-                        child: TagBadge(
-                          tag: tag,
-                          variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-              ],
-            ),
-            actions: [
-              FButton(
-                variant: FButtonVariant.ghost,
-                onPress: () {
-                  setState(() {
-                    _sortOption = SortOption.manual;
-                    _selectedTagIds.clear();
-                  });
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Reset'),
-              ),
-              FButton(
-                onPress: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
-            ],
-          );
-        },
+      title: 'Filter & Sort',
+      initialSelectedTagIds: _selectedTagIds,
+      onReset: () {
+        setState(() {
+          _sortOption = SortOption.manual;
+          _selectedTagIds.clear();
+        });
+      },
+      extraContent: StatefulBuilder(
+        builder: (context, setStateDialog) => FSelect<SortOption>(
+          label: const Text('Sort By'),
+          hint: 'Select sorting',
+          items: const {
+            'Manual (Reorderable)': SortOption.manual,
+            'Priority (High to Low)': SortOption.priority,
+          },
+          control: FSelectControl.lifted(
+            value: _sortOption,
+            onChange: (value) {
+              if (value != null) {
+                setState(() => _sortOption = value);
+                setStateDialog(() {});
+              }
+            },
+          ),
+        ),
       ),
     );
+
+    if (result != null) {
+      setState(() {
+        _selectedTagIds.clear();
+        _selectedTagIds.addAll(result);
+      });
+    }
   }
 
   void _confirmDeleteCompleted() async {

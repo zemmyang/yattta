@@ -9,6 +9,7 @@
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
   errors:
+    experimental_member_use: ignore
     unintended_html_in_doc_comment: ignore
 include: package:flutter_lints/flutter.yaml
 
