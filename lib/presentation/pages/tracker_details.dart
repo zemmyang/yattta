@@ -9,6 +9,24 @@ import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
 import 'unified_text_entry.dart';
 
+enum RollingAveragePeriod {
+  none,
+  day7,
+  day30;
+
+  String get label => switch (this) {
+        RollingAveragePeriod.none => 'None',
+        RollingAveragePeriod.day7 => '7d',
+        RollingAveragePeriod.day30 => '30d',
+      };
+
+  Duration? get duration => switch (this) {
+        RollingAveragePeriod.none => null,
+        RollingAveragePeriod.day7 => const Duration(days: 7),
+        RollingAveragePeriod.day30 => const Duration(days: 30),
+      };
+}
+
 class TrackerDetailsPage extends ConsumerStatefulWidget {
   final Tracker tracker;
 
@@ -20,6 +38,35 @@ class TrackerDetailsPage extends ConsumerStatefulWidget {
 
 class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
   final Set<int> _expandedIndices = {0}; // Expand the first month by default
+  RollingAveragePeriod _rollingAveragePeriod = RollingAveragePeriod.none;
+
+  List<FlSpot> _calculateRollingAverage(List<TrackerLog> logs, Duration window) {
+    if (logs.isEmpty) return [];
+
+    final List<FlSpot> spots = [];
+
+    // logs are expected to be sorted ASC by loggedAt for calculation
+    for (int i = 0; i < logs.length; i++) {
+      final currentLog = logs[i];
+      final windowStart = currentLog.loggedAt.subtract(window);
+
+      double sum = 0;
+      int count = 0;
+
+      for (int j = i; j >= 0; j--) {
+        if (logs[j].loggedAt.isBefore(windowStart)) break;
+        sum += logs[j].value;
+        count++;
+      }
+
+      spots.add(FlSpot(
+        currentLog.loggedAt.millisecondsSinceEpoch.toDouble(),
+        sum / count,
+      ));
+    }
+
+    return spots;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +166,7 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                 NoteRenderer(note: widget.tracker.notes),
                 const SizedBox(height: 24),
               ],
+              const SizedBox(height: 8),
               SizedBox(
                 height: 300,
                 child: Padding(
@@ -175,13 +223,53 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                             color: chartColor.withValues(alpha: 0.1),
                           ),
                         ),
+                        if (_rollingAveragePeriod != RollingAveragePeriod.none)
+                          LineChartBarData(
+                            spots: _calculateRollingAverage(logs, _rollingAveragePeriod.duration!),
+                            isCurved: true,
+                            color: Colors.blue,
+                            barWidth: 2,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: false),
+                          ),
                       ],
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Rolling Average',
+                    style: FTheme.of(context).typography.body.sm.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: FTheme.of(context).colors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 300,
+                    child: FTabs(
+                      control: FTabControl.managed(
+                        initial: _rollingAveragePeriod.index,
+                        onChange: (index) => setState(() {
+                          _rollingAveragePeriod = RollingAveragePeriod.values[index];
+                        }),
+                      ),
+                      children: RollingAveragePeriod.values.map((period) {
+                        return FTabEntry(
+                          label: Text(period.label),
+                          child: const SizedBox.shrink(),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+                Text(
                 'Logs',
                 style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
               ),

@@ -1,5 +1,6 @@
 // presentation/providers/database_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import '../../data/database/app_database.dart';
 import '../../data/daos/todos_dao.dart';
 import '../../data/daos/tasks_dao.dart';
@@ -63,6 +64,14 @@ final activeTasksProvider = StreamProvider((ref) {
 
 final todayLogsProvider = StreamProvider((ref) {
   return ref.watch(tasksDaoProvider).watchLogsForDay(DateTime.now());
+});
+
+final taskLogsForTaskProvider = StreamProvider.family<List<TaskLog>, String>((ref, taskId) {
+  // Returns all logs for a specific task, sorted by triggeredAt DESC
+  return (ref.watch(appDatabaseProvider).select(ref.watch(appDatabaseProvider).taskLogs)
+    ..where((l) => l.taskId.equals(taskId))
+    ..orderBy([(l) => OrderingTerm.desc(l.triggeredAt)]))
+    .watch();
 });
 
 final activeRemindersProvider = StreamProvider((ref) {

@@ -346,9 +346,18 @@ class DataSeeder {
         final sessionsCount = _random.nextInt(9);
         for (int j = 0; j < sessionsCount; j++) {
           final start = DateTime(day.year, day.month, day.day, 8 + _random.nextInt(12), _random.nextInt(60));
+          
+          // Randomly decide if it's a Todo session or free-floating
+          final type = _random.nextInt(2);
+          String? todoId;
+          
+          if (type == 0 && todoIds.isNotEmpty) {
+            todoId = todoIds[_random.nextInt(todoIds.length)];
+          }
+
           await db.pomodoroSessionsDao.insertSession(PomodoroSessionsCompanion.insert(
             id: _uuid.v4(),
-            todoId: todoIds.isNotEmpty ? Value(todoIds[_random.nextInt(todoIds.length)]) : const Value.absent(),
+            todoId: todoId != null ? Value(todoId) : const Value.absent(),
             durationSeconds: 1500, // 25 mins
             startedAt: start,
             endedAt: Value(start.add(const Duration(minutes: 25))),

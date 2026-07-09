@@ -19,12 +19,6 @@ class PomodoroSessionsDao extends DatabaseAccessor<AppDatabase>
     return query.watch().map((list) => list.length);
   }
 
-  Stream<int> watchCountForTask(String taskId) {
-    final query = select(pomodoroSessions)
-      ..where((s) => s.taskId.equals(taskId) & s.status.equals(PomodoroStatus.completed.index));
-    return query.watch().map((list) => list.length);
-  }
-
   Stream<int> watchTotalCompleted() {
     final query = select(pomodoroSessions)
       ..where((s) => s.status.equals(PomodoroStatus.completed.index));
@@ -52,22 +46,9 @@ class PomodoroSessionsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
-  Stream<List<PomodoroSession>> watchSessionsForTask(String taskId) {
-    return (select(pomodoroSessions)
-          ..where((s) => s.taskId.equals(taskId))
-          ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
-        .watch();
-  }
-  
   Future<List<PomodoroSession>> getSessionsForTodo(String todoId) =>
       (select(pomodoroSessions)
         ..where((s) => s.todoId.equals(todoId))
-        ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
-      .get();
-
-  Future<List<PomodoroSession>> getSessionsForTask(String taskId) =>
-      (select(pomodoroSessions)
-        ..where((s) => s.taskId.equals(taskId))
         ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
       .get();
 }

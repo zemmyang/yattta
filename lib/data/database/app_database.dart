@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(DatabaseConnection super.connection);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   // Migrations go here as schemaVersion grows
   @override
@@ -131,6 +131,10 @@ class AppDatabase extends _$AppDatabase {
           // 5. Create the unique index
           await m.createIndex(Index('tags', 'CREATE UNIQUE INDEX tags_name_unique ON tags (name COLLATE NOCASE)'));
         });
+      }
+      if (from < 6) {
+        // Remove taskId from pomodoro_sessions
+        await m.alterTable(TableMigration(pomodoroSessions));
       }
     },
   );

@@ -220,20 +220,6 @@ class _TasksPageState extends ConsumerState<TasksPage> {
               ),
             ),
           ),
-          StreamBuilder<int>(
-            stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTask(task.id),
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              if (count == 0) return const SizedBox();
-              return Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: FBadge(
-                  variant: FBadgeVariant.secondary,
-                  child: Text('$count 🍅'),
-                ),
-              );
-            },
-          ),
         ],
       ),
       subtitle: tags.isEmpty
