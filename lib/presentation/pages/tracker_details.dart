@@ -97,7 +97,7 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
 
     return FScaffold(
       header: FHeader.nested(
-        title: Text(widget.tracker.title),
+        title: const Text('Tracker Details'),
         prefixes: [
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
         ],
@@ -205,7 +205,11 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                'Created on ${widget.tracker.createdAt.year}-${widget.tracker.createdAt.month.toString().padLeft(2, '0')}-${widget.tracker.createdAt.day.toString().padLeft(2, '0')}',
+                widget.tracker.title,
+                style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Created on ${DateFormat('yyyy-MM-dd').format(widget.tracker.createdAt)}',
                 style: FTheme.of(context).typography.body.xs.copyWith(
                       color: FTheme.of(context).colors.mutedForeground,
                     ),

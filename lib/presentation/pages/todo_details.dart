@@ -69,7 +69,13 @@ class TodoDetailsPage extends ConsumerWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          Text(
+            'Created on ${DateFormat('yyyy-MM-dd').format(todo.createdAt)}',
+            style: FTheme.of(context).typography.body.xs.copyWith(
+                  color: FTheme.of(context).colors.mutedForeground,
+                ),
+          ),
+          const SizedBox(height: 16),
           FBadge(
             variant: todo.status == TodoStatus.done ? FBadgeVariant.secondary : FBadgeVariant.outline,
             child: Text(todo.status == TodoStatus.done ? 'DONE' : 'PENDING'),
@@ -115,22 +121,8 @@ class TodoDetailsPage extends ConsumerWidget {
                   icon: FLucideIcons.calendar,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _infoTile(
-                  context,
-                  label: 'Created At',
-                  value:
-                      '${todo.createdAt.year}-${todo.createdAt.month.toString().padLeft(2, '0')}-${todo.createdAt.day.toString().padLeft(2, '0')}',
-                  icon: FLucideIcons.calendarClock,
-                ),
-              ),
-            ],
-          ),
-          if (isPowerUser) ...[
-            const SizedBox(height: 16),
-            Row(
-              children: [
+              if (isPowerUser) ...[
+                const SizedBox(width: 16),
                 Expanded(
                   child: _infoTile(
                     context,
@@ -140,11 +132,12 @@ class TodoDetailsPage extends ConsumerWidget {
                     icon: FLucideIcons.timer,
                   ),
                 ),
+              ] else ...[
                 const SizedBox(width: 16),
                 const Expanded(child: SizedBox()),
               ],
-            ),
-          ],
+            ],
+          ),
           const SizedBox(height: 32),
           FButton(
             onPress: () {

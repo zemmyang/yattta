@@ -78,6 +78,7 @@ class _TodosPageState extends ConsumerState<TodosPage> {
     setState(() {
       _timeLeft = _currentDurationMinutes * 60;
       _isPaused = false;
+      _expandedIndices.clear(); // Collapse accordions when starting
       if (_timerMode == TimerMode.work) {
         _sessionStartedAt = DateTime.now();
       } else {
@@ -261,6 +262,7 @@ class _TodosPageState extends ConsumerState<TodosPage> {
   Widget build(BuildContext context) {
     final todosAsync = ref.watch(todosProvider);
     final isFilterActive = _selectedTagIds.isNotEmpty || _sortOption != SortOption.manual;
+    final isTimerRunning = _timer != null && _timer!.isActive;
 
     return FScaffold(
       header: FHeader.nested(
@@ -279,7 +281,7 @@ class _TodosPageState extends ConsumerState<TodosPage> {
               MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
             ),
           ),
-          if (_sortOption == SortOption.manual)
+          if (!isTimerRunning && _sortOption == SortOption.manual)
             FHeaderAction(
               icon: Icon(
                 FLucideIcons.listOrdered,
@@ -287,13 +289,14 @@ class _TodosPageState extends ConsumerState<TodosPage> {
               ),
               onPress: () => setState(() => _isReorderMode = !_isReorderMode),
             ),
-          FHeaderAction(
-            icon: Icon(
-              FLucideIcons.filter,
-              color: isFilterActive ? FTheme.of(context).colors.primary : null,
+          if (!isTimerRunning)
+            FHeaderAction(
+              icon: Icon(
+                FLucideIcons.filter,
+                color: isFilterActive ? FTheme.of(context).colors.primary : null,
+              ),
+              onPress: _showFilterSortDialog,
             ),
-            onPress: _showFilterSortDialog,
-          ),
         ],
       ),
       child: Stack(
@@ -499,12 +502,19 @@ class _TodosPageState extends ConsumerState<TodosPage> {
           Positioned(
             bottom: 16,
             right: 16,
-            child: FButton.icon(
-              onPress: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.todo)),
-              ),
-              child: const Icon(FLucideIcons.plus),
-            ),
+            child: isTimerRunning
+                ? FButton.icon(
+                    onPress: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
+                    ),
+                    child: const Icon(FLucideIcons.lightbulb),
+                  )
+                : FButton.icon(
+                    onPress: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const AddEntryPage(type: EntryType.todo)),
+                    ),
+                    child: const Icon(FLucideIcons.plus),
+                  ),
           ),
         ],
       ),
