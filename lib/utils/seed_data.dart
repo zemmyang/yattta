@@ -156,11 +156,13 @@ class DataSeeder {
 
     // Daily Habit: Meditation
     final task1Id = _uuid.v4();
+    final task1CreatedAt = now.subtract(const Duration(days: 30));
     await db.tasksDao.upsert(TasksCompanion.insert(
       id: task1Id,
       title: 'Morning Meditation',
       notes: const Value('10 minutes of mindfulness.'),
       recurrenceRule: const RecurrenceRule(frequency: 'daily'),
+      createdAt: Value(task1CreatedAt),
       nextDueAt: Value(DateTime(now.year, now.month, now.day, 8, 0).add(const Duration(days: 1))),
     ));
     await db.tagsDao.attachToTask(task1Id, tagIds[2]); // Health
@@ -175,11 +177,14 @@ class DataSeeder {
 
     // Seed logs for meditation
     for (int i = 1; i <= 14; i++) {
+      final logDate = now.subtract(Duration(days: i));
+      if (logDate.isBefore(task1CreatedAt)) continue;
+
       await db.tasksDao.logOccurrence(TaskLogsCompanion.insert(
         id: _uuid.v4(),
         taskId: task1Id,
         status: i % 7 == 0 ? TaskLogStatus.notDone : TaskLogStatus.done,
-        triggeredAt: now.subtract(Duration(days: i)),
+        triggeredAt: logDate,
       ));
     }
 
@@ -225,6 +230,7 @@ class DataSeeder {
       goalValue: const Value(8.0),
       goalType: const Value(GoalType.atLeast),
       valueType: const Value(TrackerValueType.integer),
+      createdAt: Value(now.subtract(const Duration(days: 45))),
     ));
     await db.tagsDao.attachToTracker(tracker1Id, tagIds[2]); // Health
     
@@ -247,6 +253,7 @@ class DataSeeder {
       goalType: const Value(GoalType.atMost),
       valueType: const Value(TrackerValueType.double),
       direction: const Value(TrackerDirection.decreasing),
+      createdAt: Value(now.subtract(const Duration(days: 60))),
     ));
     await db.tagsDao.attachToTracker(tracker2Id, tagIds[2]); // Health
 
@@ -259,35 +266,50 @@ class DataSeeder {
       goalValue: const Value(50.0),
       goalType: const Value(GoalType.atLeast),
       valueType: const Value(TrackerValueType.integer),
+      createdAt: Value(now.subtract(const Duration(days: 10))),
     ));
     await db.tagsDao.attachToTracker(tracker3Id, tagIds[2]); // Health
 
-    // Seed 30 days of logs for charts
+    // Seed logs for charts
+    // 1. Water Intake (last 30 days)
     for (int i = 30; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
-      
-      // Water: random 4-10 glasses
+      final tracker1 = await (db.select(db.trackers)..where((t) => t.id.equals(tracker1Id))).getSingle();
+      if (date.isBefore(tracker1.createdAt)) continue;
+
       await db.trackersDao.addLog(TrackerLogsCompanion.insert(
         id: _uuid.v4(),
         trackerId: tracker1Id,
         value: (_random.nextInt(7) + 4).toDouble(),
         loggedAt: date,
       ));
+    }
 
-      // Weight: slightly fluctuating down from 80kg
+    // 2. Weight (last 30 days)
+    for (int i = 30; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final tracker2 = await (db.select(db.trackers)..where((t) => t.id.equals(tracker2Id))).getSingle();
+      if (date.isBefore(tracker2.createdAt)) continue;
+
       await db.trackersDao.addLog(TrackerLogsCompanion.insert(
         id: _uuid.v4(),
         trackerId: tracker2Id,
         value: 80.0 - (30 - i) * 0.15 + (_random.nextDouble() - 0.5),
         loggedAt: date,
       ));
+    }
 
-      // Pushups: growing over time
+    // 3. Pushups (last 10 days, matching tracker age)
+    for (int i = 10; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final tracker3 = await (db.select(db.trackers)..where((t) => t.id.equals(tracker3Id))).getSingle();
+      if (date.isBefore(tracker3.createdAt)) continue;
+
       if (i % 2 == 0) {
         await db.trackersDao.addLog(TrackerLogsCompanion.insert(
           id: _uuid.v4(),
           trackerId: tracker3Id,
-          value: (10 + (30 - i)).toDouble(),
+          value: (10 + (10 - i)).toDouble(),
           loggedAt: date,
         ));
       }

@@ -27,6 +27,27 @@ enum RollingAveragePeriod {
       };
 }
 
+enum GraphViewPeriod {
+  last7d,
+  last30d,
+  last90d,
+  all;
+
+  String get label => switch (this) {
+        GraphViewPeriod.last7d => '7d',
+        GraphViewPeriod.last30d => '30d',
+        GraphViewPeriod.last90d => '90d',
+        GraphViewPeriod.all => 'All',
+      };
+
+  Duration? get duration => switch (this) {
+        GraphViewPeriod.last7d => const Duration(days: 7),
+        GraphViewPeriod.last30d => const Duration(days: 30),
+        GraphViewPeriod.last90d => const Duration(days: 90),
+        GraphViewPeriod.all => null,
+      };
+}
+
 class TrackerDetailsPage extends ConsumerStatefulWidget {
   final Tracker tracker;
 
@@ -39,28 +60,29 @@ class TrackerDetailsPage extends ConsumerStatefulWidget {
 class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
   final Set<int> _expandedIndices = {0}; // Expand the first month by default
   RollingAveragePeriod _rollingAveragePeriod = RollingAveragePeriod.none;
+  GraphViewPeriod _viewPeriod = GraphViewPeriod.all;
 
-  List<FlSpot> _calculateRollingAverage(List<TrackerLog> logs, Duration window) {
-    if (logs.isEmpty) return [];
+  List<FlSpot> _calculateRollingAverage(List<FlSpot> inputSpots, Duration window) {
+    if (inputSpots.isEmpty) return [];
 
     final List<FlSpot> spots = [];
 
-    // logs are expected to be sorted ASC by loggedAt for calculation
-    for (int i = 0; i < logs.length; i++) {
-      final currentLog = logs[i];
-      final windowStart = currentLog.loggedAt.subtract(window);
+    // inputSpots are expected to be sorted ASC by x (timestamp)
+    for (int i = 0; i < inputSpots.length; i++) {
+      final currentSpot = inputSpots[i];
+      final windowStart = currentSpot.x - window.inMilliseconds.toDouble();
 
       double sum = 0;
       int count = 0;
 
       for (int j = i; j >= 0; j--) {
-        if (logs[j].loggedAt.isBefore(windowStart)) break;
-        sum += logs[j].value;
+        if (inputSpots[j].x < windowStart) break;
+        sum += inputSpots[j].y;
         count++;
       }
 
       spots.add(FlSpot(
-        currentLog.loggedAt.millisecondsSinceEpoch.toDouble(),
+        currentSpot.x,
         sum / count,
       ));
     }
@@ -120,6 +142,44 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
             return const Center(child: Text('No data logged yet.'));
           }
 
+          final now = DateTime.now();
+          final minDate = DateTime(widget.tracker.createdAt.year, widget.tracker.createdAt.month, widget.tracker.createdAt.day);
+          final maxDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+          double minXValue;
+          if (_viewPeriod.duration != null) {
+            minXValue = now.subtract(_viewPeriod.duration!).millisecondsSinceEpoch.toDouble();
+          } else {
+            // Use earliest log timestamp if 'All' is selected, fallback to minDate if no logs
+            minXValue = logs.isNotEmpty 
+                ? logs.first.loggedAt.millisecondsSinceEpoch.toDouble() 
+                : minDate.millisecondsSinceEpoch.toDouble();
+          }
+          
+          final minX = minXValue;
+          final maxX = maxDate.millisecondsSinceEpoch.toDouble();
+          final range = maxX - minX;
+
+          // Calculate interval: at least 1 day, or more if the range is large
+          double interval = 86400000.0; // 1 day in ms
+          if (range > 86400000.0 * 7) {
+            final double rawInterval = range / 5;
+            // Round to nearest day for cleaner labels
+            interval = (rawInterval / 86400000.0).ceil() * 86400000.0;
+          }
+
+          // Aggregate logs by date for the graph
+          final Map<DateTime, List<double>> dailyValues = {};
+          for (final log in logs) {
+            final date = DateTime(log.loggedAt.year, log.loggedAt.month, log.loggedAt.day);
+            dailyValues.putIfAbsent(date, () => []).add(log.value);
+          }
+
+          final List<FlSpot> dailyAverageSpots = dailyValues.entries.map((entry) {
+            final avg = entry.value.reduce((a, b) => a + b) / entry.value.length;
+            return FlSpot(entry.key.millisecondsSinceEpoch.toDouble(), avg);
+          }).toList()..sort((a, b) => a.x.compareTo(b.x));
+
           // Determine chart color based on trend and direction
           Color chartColor = FTheme.of(context).colors.primary;
           if (logs.length >= 2) {
@@ -134,6 +194,8 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
               chartColor = isDecreasing ? Colors.green : Colors.red;
             }
           }
+
+          final visibleSpots = dailyAverageSpots.where((spot) => spot.x >= minX && spot.x <= maxX).toList();
 
           // Group logs by month
           final Map<String, List<TrackerLog>> groupedLogs = {};
@@ -154,6 +216,13 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Text(
+                'Created on ${widget.tracker.createdAt.year}-${widget.tracker.createdAt.month.toString().padLeft(2, '0')}-${widget.tracker.createdAt.day.toString().padLeft(2, '0')}',
+                style: FTheme.of(context).typography.body.xs.copyWith(
+                      color: FTheme.of(context).colors.mutedForeground,
+                    ),
+              ),
+              const SizedBox(height: 16),
               if (widget.tracker.notes != null && widget.tracker.notes!.isNotEmpty) ...[
                 Text(
                   'Notes',
@@ -167,20 +236,45 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                 const SizedBox(height: 24),
               ],
               const SizedBox(height: 8),
+              Center(
+                child: SizedBox(
+                  width: 300,
+                  child: FTabs(
+                    control: FTabControl.managed(
+                      initial: _viewPeriod.index,
+                      onChange: (index) => setState(() {
+                        _viewPeriod = GraphViewPeriod.values[index];
+                      }),
+                    ),
+                    children: GraphViewPeriod.values.map((period) {
+                      return FTabEntry(
+                        label: Text(period.label),
+                        child: const SizedBox.shrink(),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 height: 300,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 16, top: 16, bottom: 8),
                   child: LineChart(
                     LineChartData(
+                      clipData: const FlClipData.all(),
                       gridData: const FlGridData(show: true),
+                      minX: minX,
+                      maxX: maxX,
                       titlesData: FlTitlesData(
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 22,
+                            interval: interval,
                             getTitlesWidget: (value, meta) {
-                              if (logs.isEmpty) return const Text('');
+                              if (value < minX || value > maxX) return const SizedBox.shrink();
+                              
                               final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
                               return Text(
                                 '${date.month}/${date.day}',
@@ -207,12 +301,7 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                       borderData: FlBorderData(show: true),
                       lineBarsData: [
                         LineChartBarData(
-                          spots: logs.map((log) {
-                            return FlSpot(
-                              log.loggedAt.millisecondsSinceEpoch.toDouble(),
-                              log.value,
-                            );
-                          }).toList(),
+                          spots: visibleSpots,
                           isCurved: false,
                           color: chartColor,
                           barWidth: 3,
@@ -225,7 +314,9 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                         ),
                         if (_rollingAveragePeriod != RollingAveragePeriod.none)
                           LineChartBarData(
-                            spots: _calculateRollingAverage(logs, _rollingAveragePeriod.duration!),
+                            spots: _calculateRollingAverage(dailyAverageSpots, _rollingAveragePeriod.duration!)
+                                .where((spot) => spot.x >= minX && spot.x <= maxX)
+                                .toList(),
                             isCurved: true,
                             color: Colors.blue,
                             barWidth: 2,

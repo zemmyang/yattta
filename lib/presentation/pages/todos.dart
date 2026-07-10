@@ -42,6 +42,7 @@ class _TodosPageState extends ConsumerState<TodosPage> {
 
   // Filter/Sort State
   SortOption _sortOption = SortOption.manual;
+  bool _isReorderMode = false;
   final Set<String> _selectedTagIds = {};
   final Set<int> _expandedIndices = {0, 1};
 
@@ -273,17 +274,25 @@ class _TodosPageState extends ConsumerState<TodosPage> {
         ],
         suffixes: [
           FHeaderAction(
+            icon: const Icon(FLucideIcons.lightbulb),
+            onPress: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
+            ),
+          ),
+          if (_sortOption == SortOption.manual)
+            FHeaderAction(
+              icon: Icon(
+                FLucideIcons.listOrdered,
+                color: _isReorderMode ? FTheme.of(context).colors.primary : null,
+              ),
+              onPress: () => setState(() => _isReorderMode = !_isReorderMode),
+            ),
+          FHeaderAction(
             icon: Icon(
               FLucideIcons.filter,
               color: isFilterActive ? FTheme.of(context).colors.primary : null,
             ),
             onPress: _showFilterSortDialog,
-          ),
-          FHeaderAction(
-            icon: const Icon(FLucideIcons.lightbulb),
-            onPress: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const UnifiedTextEntryPage.brainDump()),
-            ),
           ),
         ],
       ),
@@ -533,12 +542,10 @@ class _TodosPageState extends ConsumerState<TodosPage> {
         final isFocused = _focusedTodo?.id == item.todo.id;
         return Container(
           key: ValueKey(item.todo.id),
+          margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: index < todos.length - 1
-                  ? BorderSide(color: FTheme.of(context).colors.border, width: 0.5)
-                  : BorderSide.none,
-            ),
+            border: Border.all(color: FTheme.of(context).colors.border, width: 0.5),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: FTile(
             selected: isFocused,
@@ -566,6 +573,8 @@ class _TodosPageState extends ConsumerState<TodosPage> {
                       Expanded(
                         child: Text(
                           item.todo.title,
+                          softWrap: true,
+                          overflow: TextOverflow.visible,
                           style: isPending
                               ? null
                               : const TextStyle(
@@ -575,20 +584,6 @@ class _TodosPageState extends ConsumerState<TodosPage> {
                       ),
                     ],
                   ),
-                ),
-                StreamBuilder<int>(
-                  stream: ref.read(pomodoroSessionsDaoProvider).watchCountForTodo(item.todo.id),
-                  builder: (context, snapshot) {
-                    final count = snapshot.data ?? 0;
-                    if (count == 0) return const SizedBox();
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: FBadge(
-                        variant: isPending ? FBadgeVariant.secondary : FBadgeVariant.outline,
-                        child: Text('$count 🍅'),
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
@@ -640,7 +635,7 @@ class _TodosPageState extends ConsumerState<TodosPage> {
             prefix: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_sortOption == SortOption.manual)
+                if (_isReorderMode)
                   ReorderableDragStartListener(
                     index: index,
                     child: const Padding(
@@ -669,20 +664,6 @@ class _TodosPageState extends ConsumerState<TodosPage> {
                     FLucideIcons.target,
                     color: isFocused ? FTheme.of(context).colors.primary : null,
                   ),
-                ),
-                FButton.icon(
-                  variant: FButtonVariant.ghost,
-                  size: FButtonSizeVariant.sm,
-                  onPress: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => AddEntryPage(
-                        type: EntryType.todo,
-                        todo: item.todo,
-                        initialTags: item.tags,
-                      ),
-                    ),
-                  ),
-                  child: const Icon(FLucideIcons.pencil),
                 ),
               ],
             ),

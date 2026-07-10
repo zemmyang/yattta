@@ -113,19 +113,36 @@ class TodoDetailsPage extends ConsumerWidget {
                   icon: FLucideIcons.calendar,
                 ),
               ),
-              if (isPowerUser) ...[
-                const SizedBox(width: 16),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _infoTile(
+                  context,
+                  label: 'Created At',
+                  value:
+                      '${todo.createdAt.year}-${todo.createdAt.month.toString().padLeft(2, '0')}-${todo.createdAt.day.toString().padLeft(2, '0')}',
+                  icon: FLucideIcons.calendarClock,
+                ),
+              ),
+            ],
+          ),
+          if (isPowerUser) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
                 Expanded(
                   child: _infoTile(
                     context,
                     label: 'Durations',
-                    value: '${todo.workDuration ?? settingsController.timerDuration}w / ${todo.breakDuration ?? settingsController.breakDuration}b',
+                    value:
+                        '${todo.workDuration ?? settingsController.timerDuration}w / ${todo.breakDuration ?? settingsController.breakDuration}b',
                     icon: FLucideIcons.timer,
                   ),
                 ),
+                const SizedBox(width: 16),
+                const Expanded(child: SizedBox()),
               ],
-            ],
-          ),
+            ),
+          ],
           const SizedBox(height: 32),
           FButton(
             onPress: () {

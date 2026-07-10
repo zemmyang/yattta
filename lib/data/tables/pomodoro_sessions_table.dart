@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import '../mixins/audit_columns.dart';
 import 'todos_table.dart';
-import 'tasks_table.dart';
 import "../converters/enum_converters.dart";
 
 class PomodoroSessions extends Table with AuditColumns {

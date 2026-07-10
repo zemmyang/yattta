@@ -7,6 +7,8 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
+import 'package:heatmap_calendar_plus/heatmap_calendar_plus.dart';
+import 'package:yattta/utils/settings_controller.dart';
 
 import 'package:intl/intl.dart';
 
@@ -28,16 +30,133 @@ class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
   final Set<int> _expandedIndices = {0}; // Expand the first month by default
   final Set<TaskLogStatus> _selectedStatuses = {
     TaskLogStatus.done,
-    TaskLogStatus.notDone,
-    TaskLogStatus.skipped
   };
+
+  final HeatMapCalendarController _calendarController = HeatMapCalendarController();
+
+  Widget _buildCalendar(List<TaskLog> logs, Task task) {
+    final Map<DateTime, int> datasets = {};
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Map logs for easy lookup
+    final Map<DateTime, TaskLogStatus> logMap = {
+      for (final log in logs)
+        DateTime(log.triggeredAt.year, log.triggeredAt.month, log.triggeredAt.day): log.status
+    };
+
+    // Go back as far as the task was created
+    final taskCreatedDate = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
+
+    int i = 0;
+    while (true) {
+      final date = today.subtract(Duration(days: i));
+      if (date.isBefore(taskCreatedDate)) break;
+
+      final status = logMap[date];
+
+      if (status == TaskLogStatus.done) {
+        datasets[date] = 1;
+      } else if (status == TaskLogStatus.skipped) {
+        datasets[date] = 2;
+      } else if (task.recurrenceRule.isDueOn(date)) {
+        // If due but no log, it's "Not Done"
+        // Only if it's in the past (before today)
+        if (date.isBefore(today)) {
+          datasets[date] = 3;
+        }
+      }
+      i++;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: FTheme.of(context).colors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: FTheme.of(context).colors.border),
+      ),
+      child: Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 250),
+          child: HeatMapCalendar(
+            controller: _calendarController,
+            headerBuilder: (context, currentDate) {
+              final date = currentDate ?? DateTime.now();
+              final startOfCreation = DateTime(task.createdAt.year, task.createdAt.month, 1);
+              final startOfToday = DateTime(now.year, now.month, 1);
+
+              final canGoBack = date.isAfter(startOfCreation);
+              final canGoForward = date.isBefore(startOfToday);
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 14),
+                    onPressed: canGoBack ? () => _calendarController.previousMonth() : null,
+                  ),
+                  Text(
+                    DateFormat('MMMM yyyy').format(date),
+                    style: FTheme.of(context).typography.body.sm.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onPressed: canGoForward ? () => _calendarController.nextMonth() : null,
+                  ),
+                ],
+              );
+            },
+            datasets: datasets,
+            colorMode: ColorMode.color,
+            defaultColor: FTheme.of(context).colors.muted,
+            size: 25,
+            weekStartsWith: settingsController.startOfWeek == DateTime.sunday ? 7 : settingsController.startOfWeek,
+            dayTextStyle: TextStyle(
+              color: FTheme.of(context).colors.foreground,
+              fontSize: 10,
+            ),
+            monthTextStyle: TextStyle(
+              color: FTheme.of(context).colors.foreground,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            weekTextStyle: TextStyle(
+              color: FTheme.of(context).colors.foreground,
+              fontSize: 10,
+            ),
+            colorsets: const {
+              1: Colors.green,
+              2: Colors.orange,
+              3: Colors.red,
+            },
+            onClick: (date) {
+              // Show status for that day
+              final val = datasets[date];
+              String statusText = 'Not Due';
+              if (val == 1) statusText = 'Done';
+              if (val == 2) statusText = 'Skipped';
+              if (val == 3) statusText = 'Not Done';
+
+              final dateStr = DateFormat('yyyy-MM-dd').format(date);
+              showFToast(
+                context: context,
+                title: Text(statusText),
+                description: Text(dateStr),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final task = widget.task;
     final tags = widget.tags;
     final ref = this.ref;
-    // Task logs for history (optional, can add if needed)
 
     return FScaffold(
       header: FHeader.nested(
@@ -73,6 +192,12 @@ class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
           Text(
             task.title,
             style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
+          ),
+          Text(
+            'Created on ${DateFormat('yyyy-MM-dd').format(task.createdAt)}',
+            style: FTheme.of(context).typography.body.xs.copyWith(
+                  color: FTheme.of(context).colors.mutedForeground,
+                ),
           ),
           const SizedBox(height: 24),
           if (task.notes != null && task.notes!.isNotEmpty) ...[
@@ -112,105 +237,172 @@ class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
           ),
           const SizedBox(height: 8),
           Text(task.recurrenceRule.toString()),
-          const SizedBox(height: 40),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Task History',
-                style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
-              ),
-              Wrap(
-                spacing: 4,
-                children: TaskLogStatus.values.map((status) {
-                  final isSelected = _selectedStatuses.contains(status);
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          if (_selectedStatuses.length > 1) {
-                            _selectedStatuses.remove(status);
-                          }
-                        } else {
-                          _selectedStatuses.add(status);
-                        }
-                      });
-                    },
-                    child: FBadge(
-                      variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
-                      child: Text(status.name.toUpperCase()),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
           ref.watch(taskLogsForTaskProvider(task.id)).when(
                 data: (logs) {
-                  if (logs.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: Text('No history yet.')),
-                    );
-                  }
+                  final isPowerUser = settingsController.userMode == UserMode.powerUser;
 
-                  // Group logs by month
-                  final groupedLogs = <String, List<TaskLog>>{};
-                  final monthKeys = <String>[];
-                  for (final log in logs) {
-                    if (!_selectedStatuses.contains(log.status)) continue;
-
-                    final key = DateFormat('MMMM yyyy').format(log.triggeredAt);
-                    if (!groupedLogs.containsKey(key)) {
-                      groupedLogs[key] = [];
-                      monthKeys.add(key);
-                    }
-                    groupedLogs[key]!.add(log);
-                  }
-
-                  return FAccordion(
-                    control: FAccordionControl.lifted(
-                      expanded: (index) => _expandedIndices.contains(index),
-                      onChange: (index, expanded) => setState(() {
-                        if (expanded) {
-                          _expandedIndices.add(index);
-                        } else {
-                          _expandedIndices.remove(index);
-                        }
-                      }),
-                    ),
-                    children: monthKeys.asMap().entries.map((entry) {
-                      final monthKey = entry.value;
-                      final monthLogs = groupedLogs[monthKey]!;
-
-                      return FAccordionItem(
-                        title: Text(monthKey),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isPowerUser) ...[
+                        Center(
+                          child: Text(
+                            'Habit Calendar',
+                            style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildCalendar(logs, task),
+                        const SizedBox(height: 32),
+                      ],
+                      Center(
                         child: Column(
-                          children: monthLogs.map((log) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: FTile(
-                                title: Text(
-                                  DateFormat('yyyy-MM-dd').format(log.triggeredAt),
-                                ),
-                                subtitle: log.notes != null && log.notes!.isNotEmpty
-                                    ? Text(
-                                        log.notes!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : null,
-                                suffix: FBadge(
-                                  variant: log.status == TaskLogStatus.done ? FBadgeVariant.secondary : FBadgeVariant.outline,
-                                  child: Text(log.status.name.toUpperCase()),
-                                ),
+                          children: [
+                            Text(
+                              'Task History',
+                              style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 4,
+                              children: TaskLogStatus.values.map((status) {
+                                final isSelected = _selectedStatuses.contains(status);
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        if (_selectedStatuses.length > 1) {
+                                          _selectedStatuses.remove(status);
+                                        }
+                                      } else {
+                                        _selectedStatuses.add(status);
+                                      }
+                                    });
+                                  },
+                                  child: FBadge(
+                                    variant: isSelected ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                                    child: Text(status.name.toUpperCase()),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      () {
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final historyEntries = <_HistoryEntry>[];
+
+                        // 2. We want to show all real logs AND inferred missed days
+                        // For missed days, we go back to when the task was created to match the calendar
+                        final Set<DateTime> processedDates = {};
+
+                        // Add all real logs
+                        for (final log in logs) {
+                          final date = DateTime(log.triggeredAt.year, log.triggeredAt.month, log.triggeredAt.day);
+                          historyEntries.add(_HistoryEntry(
+                            triggeredAt: log.triggeredAt,
+                            status: log.status,
+                            notes: log.notes,
+                          ));
+                          processedDates.add(date);
+                        }
+
+                        // Synthesize missed days back to the task creation date
+                        final taskCreatedDate = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
+                        int i = 0;
+                        while (true) {
+                          final date = today.subtract(Duration(days: i));
+                          if (date.isBefore(taskCreatedDate)) break;
+                          if (processedDates.contains(date)) {
+                            i++;
+                            continue;
+                          }
+
+                          if (task.recurrenceRule.isDueOn(date) && date.isBefore(today)) {
+                            historyEntries.add(_HistoryEntry(
+                              triggeredAt: date,
+                              status: TaskLogStatus.notDone,
+                            ));
+                          }
+                          i++;
+                        }
+
+                        // Sort all by triggeredAt DESC
+                        historyEntries.sort((a, b) => b.triggeredAt.compareTo(a.triggeredAt));
+
+                        // Filter by selected statuses
+                        final filteredEntries = historyEntries.where((e) => _selectedStatuses.contains(e.status)).toList();
+
+                        if (filteredEntries.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: Text('No history matching filters.')),
+                          );
+                        }
+
+                        // Group by month
+                        final groupedLogs = <String, List<_HistoryEntry>>{};
+                        final monthKeys = <String>[];
+                        for (final entry in filteredEntries) {
+                          final key = DateFormat('MMMM yyyy').format(entry.triggeredAt);
+                          if (!groupedLogs.containsKey(key)) {
+                            groupedLogs[key] = [];
+                            monthKeys.add(key);
+                          }
+                          groupedLogs[key]!.add(entry);
+                        }
+
+                        return FAccordion(
+                          control: FAccordionControl.lifted(
+                            expanded: (index) => _expandedIndices.contains(index),
+                            onChange: (index, expanded) => setState(() {
+                              if (expanded) {
+                                _expandedIndices.add(index);
+                              } else {
+                                _expandedIndices.remove(index);
+                              }
+                            }),
+                          ),
+                          children: monthKeys.asMap().entries.map((entry) {
+                            final monthKey = entry.value;
+                            final monthLogs = groupedLogs[monthKey]!;
+
+                            return FAccordionItem(
+                              title: Text(monthKey),
+                              child: Column(
+                                children: monthLogs.map((historyEntry) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: FTile(
+                                      title: Text(
+                                        DateFormat('yyyy-MM-dd').format(historyEntry.triggeredAt),
+                                      ),
+                                      subtitle: historyEntry.notes != null && historyEntry.notes!.isNotEmpty
+                                          ? Text(
+                                              historyEntry.notes!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            )
+                                          : null,
+                                      suffix: FBadge(
+                                        variant: historyEntry.status == TaskLogStatus.done
+                                            ? FBadgeVariant.secondary
+                                            : FBadgeVariant.outline,
+                                        child: Text(historyEntry.status.name.toUpperCase()),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             );
                           }).toList(),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }(),
+                    ],
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -220,4 +412,16 @@ class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
       ),
     );
   }
+}
+
+class _HistoryEntry {
+  final DateTime triggeredAt;
+  final TaskLogStatus status;
+  final String? notes;
+
+  _HistoryEntry({
+    required this.triggeredAt,
+    required this.status,
+    this.notes,
+  });
 }
