@@ -22,6 +22,7 @@ class TrackersPage extends ConsumerStatefulWidget {
 
 class _TrackersPageState extends ConsumerState<TrackersPage> {
   final Set<String> _selectedTagIds = {};
+  bool _isReorderMode = false;
 
   void _showFilterDialog() async {
     final result = await showTagFilterDialog(
@@ -59,6 +60,14 @@ class _TrackersPageState extends ConsumerState<TrackersPage> {
             ),
         ],
         suffixes: [
+          if (_selectedTagIds.isEmpty)
+            FHeaderAction(
+              icon: Icon(
+                FLucideIcons.listOrdered,
+                color: _isReorderMode ? FTheme.of(context).colors.primary : null,
+              ),
+              onPress: () => setState(() => _isReorderMode = !_isReorderMode),
+            ),
           FHeaderAction(
             icon: Icon(
               FLucideIcons.filter,
@@ -100,11 +109,14 @@ class _TrackersPageState extends ConsumerState<TrackersPage> {
                 },
                 itemBuilder: (context, index) {
                   final tracker = filteredTrackers[index];
-                  return TrackerTile(
+                  return Padding(
                     key: ValueKey(tracker.tracker.id),
-                    item: tracker,
-                    index: index,
-                    isReorderable: _selectedTagIds.isEmpty,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TrackerTile(
+                      item: tracker,
+                      index: index,
+                      isReorderable: _selectedTagIds.isEmpty && _isReorderMode,
+                    ),
                   );
                 },
               );
@@ -244,67 +256,7 @@ class _TrackerTileState extends ConsumerState<TrackerTile> {
           builder: (context) => TrackerDetailsPage(tracker: widget.item.tracker),
         ),
       ),
-      suffix: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FButton.icon(
-            variant: FButtonVariant.ghost,
-            size: FButtonSizeVariant.sm,
-            onPress: _editTracker,
-            child: const Icon(FLucideIcons.pencil),
-          ),
-          FButton.icon(
-            variant: FButtonVariant.ghost,
-            size: FButtonSizeVariant.sm,
-            onPress: _deleteTracker,
-            child: const Icon(FLucideIcons.trash),
-          ),
-        ],
-      ),
     );
   }
 
-  void _editTracker() async {
-    final remindersDao = ref.read(remindersDaoProvider);
-    final reminders = await remindersDao.getForTracker(widget.item.tracker.id);
-
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => AddEntryPage(
-            type: EntryType.tracker,
-            tracker: widget.item.tracker,
-            initialReminders: reminders,
-            initialTags: widget.item.tags,
-          ),
-        ),
-      );
-    }
-  }
-
-  void _deleteTracker() async {
-    final confirm = await showFDialog<bool>(
-      context: context,
-      builder: (context, style, animation) => FDialog(
-        title: const Text('Delete Tracker'),
-        body: const Text('Are you sure you want to move this tracker to the recycle bin?'),
-        actions: [
-          FButton(
-            onPress: () => Navigator.of(context).pop(false),
-            variant: FButtonVariant.ghost,
-            child: const Text('Cancel'),
-          ),
-          FButton(
-            onPress: () => Navigator.of(context).pop(true),
-            variant: FButtonVariant.destructive,
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await ref.read(trackersDaoProvider).softDelete(widget.item.tracker.id);
-    }
-  }
 }

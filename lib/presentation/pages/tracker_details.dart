@@ -7,6 +7,8 @@ import 'package:yattta/presentation/providers/database_providers.dart';
 import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
+import 'package:yattta/presentation/widgets/log_accordion.dart';
+import 'package:intl/intl.dart';
 import 'unified_text_entry.dart';
 
 enum RollingAveragePeriod {
@@ -58,7 +60,6 @@ class TrackerDetailsPage extends ConsumerStatefulWidget {
 }
 
 class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
-  final Set<int> _expandedIndices = {0}; // Expand the first month by default
   RollingAveragePeriod _rollingAveragePeriod = RollingAveragePeriod.none;
   GraphViewPeriod _viewPeriod = GraphViewPeriod.all;
 
@@ -197,21 +198,8 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
 
           final visibleSpots = dailyAverageSpots.where((spot) => spot.x >= minX && spot.x <= maxX).toList();
 
-          // Group logs by month
-          final Map<String, List<TrackerLog>> groupedLogs = {};
-          final List<String> monthKeys = [];
-
           // Sort logs most recent first for the list
           final sortedLogs = List<TrackerLog>.from(logs)..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
-
-          for (final log in sortedLogs) {
-            final monthKey = '${_getMonthName(log.loggedAt.month)} ${log.loggedAt.year}';
-            if (!groupedLogs.containsKey(monthKey)) {
-              groupedLogs[monthKey] = [];
-              monthKeys.add(monthKey);
-            }
-            groupedLogs[monthKey]!.add(log);
-          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -365,93 +353,63 @@ class _TrackerDetailsPageState extends ConsumerState<TrackerDetailsPage> {
                 style: FTheme.of(context).typography.body.lg.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              FAccordion(
-                control: FAccordionControl.lifted(
-                  expanded: (index) => _expandedIndices.contains(index),
-                  onChange: (index, expanded) => setState(() {
-                    if (expanded) {
-                      _expandedIndices.add(index);
-                    } else {
-                      _expandedIndices.remove(index);
-                    }
-                  }),
-                ),
-                children: monthKeys.asMap().entries.map((entry) {
-                  final monthKey = entry.value;
-                  final logsInMonth = groupedLogs[monthKey]!;
+              LogAccordion<TrackerLog>(
+                items: sortedLogs,
+                getTimestamp: (log) => log.loggedAt,
+                itemBuilder: (context, log) {
+                  final displayValue = widget.tracker.valueType == TrackerValueType.integer 
+                    ? log.value.toInt().toString() 
+                    : log.value.toStringAsFixed(1);
 
-                  return FAccordionItem(
-                    title: Text(monthKey),
-                    child: Column(
-                      children: logsInMonth.map((log) {
-                        final displayValue = widget.tracker.valueType == TrackerValueType.integer 
-                          ? log.value.toInt().toString() 
-                          : log.value.toStringAsFixed(1);
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: FTile(
-                            title: Text('$displayValue ${widget.tracker.unit ?? ''}'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${log.loggedAt.year}-${log.loggedAt.month.toString().padLeft(2, '0')}-${log.loggedAt.day.toString().padLeft(2, '0')} '
-                                  '${log.loggedAt.hour.toString().padLeft(2, '0')}:${log.loggedAt.minute.toString().padLeft(2, '0')}',
-                                ),
-                                if (log.notes != null && log.notes!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  NoteRenderer(
-                                    note: log.notes,
-                                    isPreview: true,
-                                    maxLines: 1,
-                                    style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            suffix: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FButton.icon(
-                                  variant: FButtonVariant.ghost,
-                                  onPress: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => UnifiedTextEntryPage.trackerLog(
-                                        tracker: widget.tracker,
-                                        trackerLog: log,
-                                      ),
-                                    ),
-                                  ),
-                                  child: const Icon(FLucideIcons.pencil),
-                                ),
-                                FButton.icon(
-                                  variant: FButtonVariant.ghost,
-                                  onPress: () => _deleteLog(context, ref, log),
-                                  child: const Icon(FLucideIcons.trash),
-                                ),
-                              ],
+                  return FTile(
+                    title: Text('$displayValue ${widget.tracker.unit ?? ''}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('yyyy-MM-dd HH:mm').format(log.loggedAt),
+                        ),
+                        if (log.notes != null && log.notes!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          NoteRenderer(
+                            note: log.notes,
+                            isPreview: true,
+                            maxLines: 1,
+                            style: FTheme.of(context).typography.body.xs.copyWith(color: FTheme.of(context).colors.mutedForeground),
+                          ),
+                        ],
+                      ],
+                    ),
+                    suffix: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FButton.icon(
+                          variant: FButtonVariant.ghost,
+                          onPress: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => UnifiedTextEntryPage.trackerLog(
+                                tracker: widget.tracker,
+                                trackerLog: log,
+                              ),
                             ),
                           ),
-                        );
-                      }).toList(),
+                          child: const Icon(FLucideIcons.pencil),
+                        ),
+                        FButton.icon(
+                          variant: FButtonVariant.ghost,
+                          onPress: () => _deleteLog(context, ref, log),
+                          child: const Icon(FLucideIcons.trash),
+                        ),
+                      ],
                     ),
                   );
-                }).toList(),
+                },
               ),
             ],
           );
         },
       ),
     );
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month - 1];
   }
 
   void _deleteLog(BuildContext context, WidgetRef ref, TrackerLog log) async {

@@ -23,6 +23,7 @@ class TasksPage extends ConsumerStatefulWidget {
 
 class _TasksPageState extends ConsumerState<TasksPage> {
   final Set<String> _selectedTagIds = {};
+  bool _isReorderMode = false;
 
   void _showFilterDialog() async {
     final result = await showTagFilterDialog(
@@ -62,6 +63,14 @@ class _TasksPageState extends ConsumerState<TasksPage> {
             ),
         ],
         suffixes: [
+          if (_selectedTagIds.isEmpty)
+            FHeaderAction(
+              icon: Icon(
+                FLucideIcons.listOrdered,
+                color: _isReorderMode ? FTheme.of(context).colors.primary : null,
+              ),
+              onPress: () => setState(() => _isReorderMode = !_isReorderMode),
+            ),
           FHeaderAction(
             icon: Icon(
               FLucideIcons.filter,
@@ -189,120 +198,99 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     );
   }
 
-  FTile _buildTaskTile(BuildContext context, WidgetRef ref, TaskWithTags taskWithTags, TaskLog? log, int index) {
+  Widget _buildTaskTile(BuildContext context, WidgetRef ref, TaskWithTags taskWithTags, TaskLog? log, int index) {
     final task = taskWithTags.task;
     final tags = taskWithTags.tags;
     final isDone = log?.status == TaskLogStatus.done;
     final isSkipped = log?.status == TaskLogStatus.skipped;
 
-    return FTile(
+    return Padding(
       key: ValueKey(task.id),
-      onPress: () async {
-        if (context.mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => TaskDetailsPage(
-                task: task,
-                tags: tags,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: FTile(
+        onPress: () async {
+          if (context.mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => TaskDetailsPage(
+                  task: task,
+                  tags: tags,
+                ),
+              ),
+            );
+          }
+        },
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                task.title,
+                style: TextStyle(
+                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  color: isSkipped || isDone ? FTheme.of(context).colors.mutedForeground : null,
+                ),
               ),
             ),
-          );
-        }
-      },
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              task.title,
-              style: TextStyle(
-                decoration: isDone ? TextDecoration.lineThrough : null,
-                color: isSkipped || isDone ? FTheme.of(context).colors.mutedForeground : null,
+          ],
+        ),
+        subtitle: tags.isEmpty
+            ? const SizedBox()
+            : Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: tags.map((tag) => TagBadge(tag: tag)).toList(),
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-      subtitle: tags.isEmpty
-          ? const SizedBox()
-          : Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: tags.map((tag) => TagBadge(tag: tag)).toList(),
+        prefix: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_selectedTagIds.isEmpty && _isReorderMode)
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(FLucideIcons.gripVertical, size: 20),
+                ),
               ),
+            FCheckbox(
+              value: isDone,
+              onChange: (value) => _toggleTaskDone(ref, task, log, value),
             ),
-      prefix: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_selectedTagIds.isEmpty)
-            ReorderableDragStartListener(
-              index: index,
-              child: const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Icon(FLucideIcons.gripVertical, size: 20),
+          ],
+        ),
+        suffix: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSkipped)
+              FBadge(
+                variant: FBadgeVariant.secondary,
+                child: const Text('Skipped'),
+              )
+            else if (!isDone)
+              FButton.icon(
+                variant: FButtonVariant.ghost,
+                onPress: () => _skipTask(ref, task, log),
+                child: const Icon(FLucideIcons.circleSlash),
               ),
-            ),
-          FCheckbox(
-            value: isDone,
-            onChange: (value) => _toggleTaskDone(ref, task, log, value),
-          ),
-        ],
-      ),
-      suffix: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isSkipped)
-            FBadge(
-              variant: FBadgeVariant.secondary,
-              child: const Text('Skipped'),
-            )
-          else if (!isDone)
+            const SizedBox(width: 4),
             FButton.icon(
               variant: FButtonVariant.ghost,
-              onPress: () => _skipTask(ref, task, log),
-              child: const Icon(FLucideIcons.circleSlash),
-            ),
-          const SizedBox(width: 4),
-          FButton.icon(
-            variant: FButtonVariant.ghost,
-            onPress: () => _editTask(context, ref, task, tags),
-            child: const Icon(FLucideIcons.pencil),
-          ),
-          const SizedBox(width: 4),
-          FButton.icon(
-            variant: FButtonVariant.ghost,
-            onPress: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => UnifiedTextEntryPage.taskNotes(task: task, taskLog: log),
+              onPress: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => UnifiedTextEntryPage.taskNotes(task: task, taskLog: log),
+                ),
+              ),
+              child: Icon(
+                FLucideIcons.notebookPen,
+                color: log?.notes != null && log!.notes!.isNotEmpty ? FTheme.of(context).colors.primary : null,
               ),
             ),
-            child: Icon(
-              FLucideIcons.notebookPen,
-              color: log?.notes != null && log!.notes!.isNotEmpty ? FTheme.of(context).colors.primary : null,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  void _editTask(BuildContext context, WidgetRef ref, Task task, List<Tag> tags) async {
-    final remindersDao = ref.read(remindersDaoProvider);
-    final reminders = await remindersDao.getForTask(task.id);
-
-    if (context.mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => AddEntryPage(
-            type: EntryType.task,
-            task: task,
-            initialReminders: reminders,
-            initialTags: tags,
-          ),
-        ),
-      );
-    }
   }
 
   void _toggleTaskDone(WidgetRef ref, Task task, TaskLog? log, bool value) async {

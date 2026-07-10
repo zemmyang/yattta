@@ -9,6 +9,8 @@ import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/pages/todos.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
+import 'package:yattta/presentation/widgets/log_accordion.dart';
+import 'package:intl/intl.dart';
 
 class TodoDetailsPage extends ConsumerWidget {
   final Todo todo;
@@ -165,27 +167,21 @@ class TodoDetailsPage extends ConsumerWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               final sessions = snapshot.data ?? [];
-              if (sessions.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: Text('No sessions recorded yet.')),
-                );
-              }
-
-              return Column(
-                children: sessions.map((session) {
-                  return FTile(
-                    title: Text('${session.durationSeconds ~/ 60} minutes'),
-                    subtitle: Text(
-                      '${session.startedAt.year}-${session.startedAt.month.toString().padLeft(2, '0')}-${session.startedAt.day.toString().padLeft(2, '0')} '
-                      '${session.startedAt.hour.toString().padLeft(2, '0')}:${session.startedAt.minute.toString().padLeft(2, '0')}',
-                    ),
-                    suffix: FBadge(
-                      variant: session.status == PomodoroStatus.completed ? FBadgeVariant.secondary : FBadgeVariant.outline,
-                      child: Text(session.status.name.toUpperCase()),
-                    ),
-                  );
-                }).toList(),
+              
+              return LogAccordion<PomodoroSession>(
+                items: sessions,
+                getTimestamp: (s) => s.startedAt,
+                emptyMessage: 'No sessions recorded yet.',
+                itemBuilder: (context, session) => FTile(
+                  title: Text('${session.durationSeconds ~/ 60} minutes'),
+                  subtitle: Text(
+                    DateFormat('yyyy-MM-dd HH:mm').format(session.startedAt),
+                  ),
+                  suffix: FBadge(
+                    variant: session.status == PomodoroStatus.completed ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                    child: Text(session.status.name.toUpperCase()),
+                  ),
+                ),
               );
             },
           ),

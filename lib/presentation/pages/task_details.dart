@@ -7,6 +7,7 @@ import 'package:yattta/data/converters/enum_converters.dart';
 import 'package:yattta/presentation/pages/tag_dialogs.dart';
 import 'package:yattta/presentation/pages/add_entry_page.dart';
 import 'package:yattta/presentation/widgets/note_renderer.dart';
+import 'package:yattta/presentation/widgets/log_accordion.dart';
 import 'package:heatmap_calendar_plus/heatmap_calendar_plus.dart';
 import 'package:yattta/utils/settings_controller.dart';
 
@@ -27,7 +28,6 @@ class TaskDetailsPage extends ConsumerStatefulWidget {
 }
 
 class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
-  final Set<int> _expandedIndices = {0}; // Expand the first month by default
   final Set<TaskLogStatus> _selectedStatuses = {
     TaskLogStatus.done,
   };
@@ -337,69 +337,26 @@ class _TaskDetailsPageState extends ConsumerState<TaskDetailsPage> {
                         // Filter by selected statuses
                         final filteredEntries = historyEntries.where((e) => _selectedStatuses.contains(e.status)).toList();
 
-                        if (filteredEntries.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Center(child: Text('No history matching filters.')),
-                          );
-                        }
-
-                        // Group by month
-                        final groupedLogs = <String, List<_HistoryEntry>>{};
-                        final monthKeys = <String>[];
-                        for (final entry in filteredEntries) {
-                          final key = DateFormat('MMMM yyyy').format(entry.triggeredAt);
-                          if (!groupedLogs.containsKey(key)) {
-                            groupedLogs[key] = [];
-                            monthKeys.add(key);
-                          }
-                          groupedLogs[key]!.add(entry);
-                        }
-
-                        return FAccordion(
-                          control: FAccordionControl.lifted(
-                            expanded: (index) => _expandedIndices.contains(index),
-                            onChange: (index, expanded) => setState(() {
-                              if (expanded) {
-                                _expandedIndices.add(index);
-                              } else {
-                                _expandedIndices.remove(index);
-                              }
-                            }),
+                        return LogAccordion<_HistoryEntry>(
+                          items: filteredEntries,
+                          getTimestamp: (e) => e.triggeredAt,
+                          emptyMessage: 'No history matching filters.',
+                          itemBuilder: (context, historyEntry) => FTile(
+                            title: Text(
+                              DateFormat('yyyy-MM-dd').format(historyEntry.triggeredAt),
+                            ),
+                            subtitle: historyEntry.notes != null && historyEntry.notes!.isNotEmpty
+                                ? Text(
+                                    historyEntry.notes!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                : null,
+                            suffix: FBadge(
+                              variant: historyEntry.status == TaskLogStatus.done ? FBadgeVariant.secondary : FBadgeVariant.outline,
+                              child: Text(historyEntry.status.name.toUpperCase()),
+                            ),
                           ),
-                          children: monthKeys.asMap().entries.map((entry) {
-                            final monthKey = entry.value;
-                            final monthLogs = groupedLogs[monthKey]!;
-
-                            return FAccordionItem(
-                              title: Text(monthKey),
-                              child: Column(
-                                children: monthLogs.map((historyEntry) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: FTile(
-                                      title: Text(
-                                        DateFormat('yyyy-MM-dd').format(historyEntry.triggeredAt),
-                                      ),
-                                      subtitle: historyEntry.notes != null && historyEntry.notes!.isNotEmpty
-                                          ? Text(
-                                              historyEntry.notes!,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            )
-                                          : null,
-                                      suffix: FBadge(
-                                        variant: historyEntry.status == TaskLogStatus.done
-                                            ? FBadgeVariant.secondary
-                                            : FBadgeVariant.outline,
-                                        child: Text(historyEntry.status.name.toUpperCase()),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            );
-                          }).toList(),
                         );
                       }(),
                     ],
