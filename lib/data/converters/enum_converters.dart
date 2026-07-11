@@ -1,6 +1,5 @@
 
 enum TodoStatus { pending, inProgress, done, cancelled }
-enum TaskStatus { active, archived }
 enum GoalType  { atLeast, atMost, exactly }
 
 enum PomodoroStatus { running, completed, abandoned }

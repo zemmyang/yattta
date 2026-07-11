@@ -9,8 +9,6 @@ class Todos extends Table with AuditColumns {
   TextColumn get title    => text()();
   TextColumn get notes    => text().nullable()();
   TextColumn get parentId => text().nullable().references(Todos, #id)();
-  TextColumn get projectId => text().nullable()();
-  TextColumn get goalId   => text().nullable()();
 
   IntColumn get status   => intEnum<TodoStatus>()();
   IntColumn get priority => integer().nullable()();
@@ -22,8 +20,6 @@ class Todos extends Table with AuditColumns {
       boolean().withDefault(const Constant(false))();
   TextColumn get recurrenceRule =>
       text().nullable().map(const RecurrenceRuleConverter())();
-
-  TextColumn get templateId => text().nullable()();
 
   IntColumn get workDuration => integer().nullable()();
   IntColumn get breakDuration => integer().nullable()();

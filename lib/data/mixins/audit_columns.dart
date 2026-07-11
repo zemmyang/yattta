@@ -6,5 +6,4 @@ mixin AuditColumns on Table {
   DateTimeColumn get updatedAt =>
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get deletedAt => dateTime().nullable()();
-  DateTimeColumn get syncedAt  => dateTime().nullable()();
 }

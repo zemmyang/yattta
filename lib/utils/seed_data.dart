@@ -227,8 +227,6 @@ class DataSeeder {
       id: tracker1Id,
       title: 'Water Intake',
       unit: const Value('glasses'),
-      goalValue: const Value(8.0),
-      goalType: const Value(GoalType.atLeast),
       valueType: const Value(TrackerValueType.integer),
       createdAt: Value(now.subtract(const Duration(days: 45))),
     ));
@@ -249,8 +247,6 @@ class DataSeeder {
       id: tracker2Id,
       title: 'Weight',
       unit: const Value('kg'),
-      goalValue: const Value(75.0),
-      goalType: const Value(GoalType.atMost),
       valueType: const Value(TrackerValueType.double),
       direction: const Value(TrackerDirection.decreasing),
       createdAt: Value(now.subtract(const Duration(days: 60))),
@@ -263,8 +259,6 @@ class DataSeeder {
       id: tracker3Id,
       title: 'Pushups',
       unit: const Value('reps'),
-      goalValue: const Value(50.0),
-      goalType: const Value(GoalType.atLeast),
       valueType: const Value(TrackerValueType.integer),
       createdAt: Value(now.subtract(const Duration(days: 10))),
     ));
@@ -369,7 +363,7 @@ class DataSeeder {
         for (int j = 0; j < sessionsCount; j++) {
           final start = DateTime(day.year, day.month, day.day, 8 + _random.nextInt(12), _random.nextInt(60));
           
-          // Randomly decide if it's a Todo session or free-floating
+          // Randomly decide if it's a to-do session or free-floating
           final type = _random.nextInt(2);
           String? todoId;
           

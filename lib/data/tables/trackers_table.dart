@@ -6,8 +6,6 @@ class Trackers extends Table with AuditColumns {
   TextColumn   get id        => text()();
   TextColumn   get title     => text()();
   TextColumn   get unit      => text().nullable()(); // e.g. 'kg', 'km', 'glasses'
-  RealColumn   get goalValue => real().nullable()();
-  IntColumn    get goalType  => intEnum<GoalType>().nullable()();
   IntColumn    get valueType => intEnum<TrackerValueType>().withDefault(const Constant(0))(); // Default to integer
   IntColumn    get direction => intEnum<TrackerDirection>().withDefault(const Constant(0))(); // Default to increasing
   TextColumn   get notes     => text().nullable()();
