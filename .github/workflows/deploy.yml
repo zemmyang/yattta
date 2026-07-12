@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate .g files
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Build Web
         run: |
           flutter build web --base-href "/${{ github.event.repository.name }}/" \
@@ -35,6 +38,9 @@ jobs:
             --dart-define=PRESEED_WEBDAV_SERVER=${{ secrets.PRESEED_WEBDAV_SERVER || github.event.inputs.webdav_server }} \
             --dart-define=PRESEED_WEBDAV_USERNAME=${{ secrets.PRESEED_WEBDAV_USERNAME || github.event.inputs.webdav_username }} \
             --dart-define=PRESEED_WEBDAV_PASSWORD=${{ secrets.PRESEED_WEBDAV_PASSWORD }}
+
+      - name: Run tests
+        run: flutter test
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
