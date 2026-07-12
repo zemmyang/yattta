@@ -57,6 +57,14 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Kill lingering flutter_tester processes to prevent file locks
+add_custom_target(kill_flutter_tester
+    COMMAND powershell -Command "if (Get-Process flutter_tester -ErrorAction SilentlyContinue) { Stop-Process -Name flutter_tester -Force }"
+    COMMENT "Checking for lingering flutter_tester processes..."
+    VERBATIM
+)
+add_dependencies(flutter_assemble kill_flutter_tester)
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

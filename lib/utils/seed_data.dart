@@ -31,7 +31,10 @@ class DataSeeder {
     // 6. Pomodoro Sessions
     await _seedPomodoroSessions(massive: massiveSessions);
 
-    // 7. Settings
+    // 7. Timers
+    await _seedTimers(tags);
+
+    // 8. Settings
     await _seedSettings();
   }
 
@@ -403,6 +406,60 @@ class DataSeeder {
       startedAt: now.subtract(const Duration(minutes: 40)),
       endedAt: Value(now.subtract(const Duration(minutes: 30))),
       status: PomodoroStatus.abandoned,
+    ));
+  }
+
+  Future<void> _seedTimers(List<String> tagIds) async {
+    final now = DateTime.now();
+
+    // 1. Active Timer: Pasta
+    final t1Id = _uuid.v4();
+    await db.timersDao.upsert(TimersCompanion.insert(
+      id: t1Id,
+      label: const Value('Pasta'),
+      durationSeconds: 600, // 10 mins
+      startedAt: now.subtract(const Duration(minutes: 3)),
+    ));
+    await db.tagsDao.attachToTimer(t1Id, tagIds[5]); // Home
+
+    // 2. Active Timer: Deep Work
+    final t2Id = _uuid.v4();
+    await db.timersDao.upsert(TimersCompanion.insert(
+      id: t2Id,
+      label: const Value('Deep Work'),
+      durationSeconds: 3000, // 50 mins
+      startedAt: now.subtract(const Duration(minutes: 25)),
+    ));
+    await db.tagsDao.attachToTimer(t2Id, tagIds[0]); // Work
+
+    // 3. Finished Timer: Quick Nap
+    final t3Id = _uuid.v4();
+    await db.timersDao.upsert(TimersCompanion.insert(
+      id: t3Id,
+      label: const Value('Quick Nap'),
+      durationSeconds: 600, // 10 mins
+      startedAt: now.subtract(const Duration(minutes: 15)),
+    ));
+
+    // 4. Cancelled Timer: Workout
+    final t4Id = _uuid.v4();
+    await db.timersDao.upsert(TimersCompanion.insert(
+      id: t4Id,
+      label: const Value('Workout'),
+      durationSeconds: 1800, // 30 mins
+      startedAt: now.subtract(const Duration(hours: 1)),
+      isCancelled: const Value(true),
+    ));
+    await db.tagsDao.attachToTimer(t4Id, tagIds[2]); // Health
+
+    // 5. Soft Deleted Timer: Laundry
+    final t5Id = _uuid.v4();
+    await db.timersDao.upsert(TimersCompanion.insert(
+      id: t5Id,
+      label: const Value('Laundry'),
+      durationSeconds: 3600, // 60 mins
+      startedAt: now.subtract(const Duration(hours: 2)),
+      deletedAt: Value(now),
     ));
   }
 
