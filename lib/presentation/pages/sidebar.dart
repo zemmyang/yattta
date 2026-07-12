@@ -9,6 +9,7 @@ import 'package:yattta/presentation/pages/brain_dumps.dart';
 import 'package:yattta/presentation/pages/settings.dart';
 import 'package:yattta/presentation/pages/statistics.dart';
 import 'package:yattta/presentation/pages/recycle_bin.dart';
+import 'package:yattta/presentation/pages/timers.dart';
 import 'package:yattta/utils/theme_controller.dart';
 import 'package:yattta/utils/settings_controller.dart';
 import 'package:yattta/presentation/providers/sync_provider.dart';
@@ -62,6 +63,14 @@ class _AppSidebar extends ConsumerWidget {
         icon: FLucideIcons.tag,
         label: 'Tags',
         builder: (context) => TagsPage(
+              onMenuPressed: () => showAppSidebar(context, themeController),
+            ),
+        visible: settingsController.userMode != UserMode.focused,
+      ),
+      (
+        icon: FLucideIcons.timer,
+        label: 'Timers',
+        builder: (context) => TimersPage(
               onMenuPressed: () => showAppSidebar(context, themeController),
             ),
         visible: settingsController.userMode != UserMode.focused,

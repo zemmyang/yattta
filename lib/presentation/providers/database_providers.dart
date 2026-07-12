@@ -50,6 +50,10 @@ final brainDumpsDaoProvider = Provider(
   (ref) => ref.watch(appDatabaseProvider).brainDumpsDao,
 );
 
+final timersDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).timersDao,
+);
+
 final tagsStreamProvider = StreamProvider((ref) {
   return ref.watch(tagsDaoProvider).watchAll();
 });
@@ -112,6 +116,10 @@ final allBrainDumpsProvider = StreamProvider((ref) {
 
 final deletedBrainDumpsProvider = StreamProvider((ref) {
   return ref.watch(brainDumpsDaoProvider).watchDeleted();
+});
+
+final timersProvider = StreamProvider((ref) {
+  return ref.watch(timersDaoProvider).watchAllWithTags();
 });
 
 class TagWithItems {

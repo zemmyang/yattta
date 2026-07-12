@@ -5,7 +5,7 @@ import "../converters/enum_converters.dart";
 
 class PomodoroSessions extends Table with AuditColumns {
   TextColumn     get id              => text()();
-  // Optional link to a todo — a session can be free-floating
+  // Optional link to a to-do — a session can be free-floating
   TextColumn     get todoId          => text().nullable().references(Todos, #id)();
   IntColumn      get durationSeconds => integer()(); // planned duration
   DateTimeColumn get startedAt       => dateTime()();

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -10,6 +12,7 @@ class NotificationService {
 
   Future<void> initialize() async {
     try {
+      tz.initializeTimeZones();
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -103,6 +106,58 @@ class NotificationService {
     } catch (e) {
       if (kDebugMode) {
         print('Error showing notification: $e');
+      }
+    }
+  }
+
+  Future<void> scheduleTimerNotification({
+    required String id,
+    required String title,
+    required String body,
+    required DateTime scheduledTime,
+  }) async {
+    try {
+      const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+        'timer_channel',
+        'Timer Notifications',
+        channelDescription: 'Notifications for timer completion',
+        importance: Importance.max,
+        priority: Priority.high,
+      );
+
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidNotificationDetails,
+        iOS: DarwinNotificationDetails(),
+        macOS: DarwinNotificationDetails(),
+        linux: LinuxNotificationDetails(),
+        windows: WindowsNotificationDetails(),
+      );
+
+      // Use a consistent ID mapping for timers if possible, or just use hash
+      final notificationId = id.hashCode;
+
+      await _notificationsPlugin.zonedSchedule(
+        id: notificationId,
+        title: title,
+        body: body,
+        scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: 'timer:$id',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error scheduling notification: $e');
+      }
+    }
+  }
+
+  Future<void> cancelTimerNotification(String id) async {
+    try {
+      await _notificationsPlugin.cancel(id: id.hashCode);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error cancelling notification: $e');
       }
     }
   }

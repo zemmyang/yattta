@@ -435,6 +435,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_picker_plus:
+    dependency: "direct main"
+    description:
+      name: flutter_picker_plus
+      sha256: "92470ca87f5d8a43ac6c30057725ce847ec17d625183ad3f8a592f2fb84203c7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.6"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -1091,7 +1099,7 @@ packages:
     source: hosted
     version: "0.7.11"
   timezone:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: timezone
       sha256: "981d1020d6ef8fe1e7b3de5054e5b25579ae7c403d7734adc508ffc47668e9cb"

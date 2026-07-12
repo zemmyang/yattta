@@ -37,8 +37,6 @@ void main() {
 
     await tester.pumpWidget(wrap(TagBadge(tag: tag)));
 
-    final badge = tester.widget<FBadge>(find.byType(FBadge));
-    
     // Check if the decoration color is applied (via style delta)
     // Note: FBadge style internals might be hard to probe directly without knowing forui implementation details,
     // but we can check if it renders.

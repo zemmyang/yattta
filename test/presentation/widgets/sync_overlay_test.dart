@@ -13,9 +13,6 @@ class MockSyncController extends SyncController {
   SyncState get state => _initialState;
 
   @override
-  void _setupAutoSync() {}
-
-  @override
   Future<void> syncNow() async {}
 }
 
