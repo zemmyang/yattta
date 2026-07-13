@@ -32,12 +32,20 @@ jobs:
 
       - name: Build Web
         run: |
-          flutter build web --base-href "/${{ github.event.repository.name }}/" \
+          flutter build web --base-href "/yattta/" \
             --dart-define=PRESEED_DATA=true \
             --dart-define=PRESEED_WEBDAV_ENABLED=false \
             --dart-define=PRESEED_WEBDAV_SERVER=${{ secrets.PRESEED_WEBDAV_SERVER || github.event.inputs.webdav_server }} \
             --dart-define=PRESEED_WEBDAV_USERNAME=${{ secrets.PRESEED_WEBDAV_USERNAME || github.event.inputs.webdav_username }} \
             --dart-define=PRESEED_WEBDAV_PASSWORD=${{ secrets.PRESEED_WEBDAV_PASSWORD }}
+
+      - name: Remove source map reference
+        run: |
+          [ -f build/web/flutter_bootstrap.js ] && sed -i 's/\/\/# sourceMappingURL=flutter.js.map//g' build/web/flutter_bootstrap.js || true
+          [ -f build/web/flutter.js ] && sed -i 's/\/\/# sourceMappingURL=flutter.js.map//g' build/web/flutter.js || true
+
+      - name: Create .nojekyll
+        run: touch build/web/.nojekyll
 
 #      - name: Run tests
 #        run: flutter test
