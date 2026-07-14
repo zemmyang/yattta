@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/database/app_database.dart';
 import '../data/daos/settings_dao.dart';
 
 final settingsController = SettingsController();
 
-enum InitialPage { todos, tasks, trackers }
+enum InitialPage { todos, tasks, trackers, timers, braindumps }
 
 enum UserMode { focused, standard, powerUser }
 
@@ -25,6 +26,7 @@ class SettingsController extends ChangeNotifier {
   InitialPage _initialPage = InitialPage.todos;
   UserMode _userMode = UserMode.focused;
   EditorType _editorType = EditorType.markdown;
+  bool _horizontalStatsView = true;
   int _startOfWeek = DateTime.sunday;
   String _syncServerAddress = '';
   bool _webDavEnabled = false;
@@ -42,6 +44,7 @@ class SettingsController extends ChangeNotifier {
   InitialPage get initialPage => _initialPage;
   UserMode get userMode => _userMode;
   EditorType get editorType => _editorType;
+  bool get horizontalStatsView => _horizontalStatsView;
   int get startOfWeek => _startOfWeek;
   String get syncServerAddress => _syncServerAddress;
   bool get webDavEnabled => _webDavEnabled;
@@ -59,6 +62,11 @@ class SettingsController extends ChangeNotifier {
     _sessionsUntilLongBreak = await _dao!.getInt('sessionsUntilLongBreak') ?? _sessionsUntilLongBreak;
     _autoStartBreaks = await _dao!.getBool('autoStartBreaks') ?? _autoStartBreaks;
     _autoStartWork = await _dao!.getBool('autoStartWork') ?? _autoStartWork;
+    
+    // Default horizontalStatsView based on platform if not set
+    final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+    _horizontalStatsView = await _dao!.getBool('horizontalStatsView') ?? !isMobile;
+    
     _startOfWeek = await _dao!.getInt('startOfWeek') ?? _startOfWeek;
     _syncServerAddress = await _dao!.getString('syncServerAddress') ?? _syncServerAddress;
     _webDavEnabled = await _dao!.getBool('webDavEnabled') ?? const bool.fromEnvironment('PRESEED_WEBDAV_ENABLED', defaultValue: false);
@@ -170,6 +178,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setHorizontalStatsView(bool value) {
+    if (_horizontalStatsView == value) return;
+    _horizontalStatsView = value;
+    _dao?.setBool('horizontalStatsView', value);
+    notifyListeners();
+  }
+
   void setStartOfWeek(int day) {
     if (_startOfWeek == day) return;
     _startOfWeek = day;
@@ -231,6 +246,10 @@ class SettingsController extends ChangeNotifier {
     _initialPage = InitialPage.todos;
     _userMode = UserMode.focused;
     _editorType = EditorType.markdown;
+    
+    final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+    _horizontalStatsView = !isMobile;
+
     _startOfWeek = DateTime.monday;
     _syncServerAddress = '';
     _webDavEnabled = false;

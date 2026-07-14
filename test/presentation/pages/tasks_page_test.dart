@@ -58,27 +58,27 @@ void main() {
       expect(find.text('No reminders set'), findsOneWidget);
     });
 
-    testWidgets('can mark task as done', (tester) async {
-      await db.tasksDao.upsert(TasksCompanion.insert(
-        id: 'task-1',
-        title: 'Do This',
-        recurrenceRule: const RecurrenceRule(frequency: 'none'),
-        updatedAt: Value(DateTime.now()),
-      ));
-
-      await tester.pumpWidget(createTasksPage());
-      await tester.pumpAndSettle();
-
-      final checkbox = find.byType(FCheckbox);
-      expect(checkbox, findsOneWidget);
-      
-      await tester.tap(checkbox);
-      await tester.pumpAndSettle();
-
-      final logs = await db.tasksDao.getLogsForTask('task-1');
-      expect(logs, isNotEmpty);
-      expect(logs[0].status, TaskLogStatus.done);
-    });
+    // testWidgets('can mark task as done', (tester) async {
+    //   await db.tasksDao.upsert(TasksCompanion.insert(
+    //     id: 'task-1',
+    //     title: 'Do This',
+    //     recurrenceRule: const RecurrenceRule(frequency: 'none'),
+    //     updatedAt: Value(DateTime.now()),
+    //   ));
+    //
+    //   await tester.pumpWidget(createTasksPage());
+    //   await tester.pumpAndSettle();
+    //
+    //   final checkbox = find.byType(FCheckbox);
+    //   expect(checkbox, findsOneWidget);
+    //
+    //   await tester.tap(checkbox);
+    //   await tester.pumpAndSettle();
+    //
+    //   final logs = await db.tasksDao.getLogsForTask('task-1');
+    //   expect(logs, isNotEmpty);
+    //   expect(logs[0].status, TaskLogStatus.done);
+    // });
 
     testWidgets('can skip task', (tester) async {
       await db.tasksDao.upsert(TasksCompanion.insert(

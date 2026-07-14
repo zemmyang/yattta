@@ -20,7 +20,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _accordionKey = GlobalKey();
-  final Set<int> _expandedIndices = {0, 1};
+  final Set<int> _expandedIndices = {0};
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +102,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             'Todos': InitialPage.todos,
                             'Tasks': InitialPage.tasks,
                             'Trackers': InitialPage.trackers,
+                            'Timers': InitialPage.timers,
+                            'Braindumps': InitialPage.braindumps,
                           },
                           control: FSelectControl.lifted(
                             value: settingsController.initialPage,
@@ -111,6 +113,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               }
                             },
                           ),
+                        ),
+                      ],
+                      if (settingsController.userMode == UserMode.powerUser) ...[
+                        const SizedBox(height: 16),
+                        FSwitch(
+                          label: const Text('Horizontal View'),
+                          description: const Text('Expand the view for a dashboard-like experience'),
+                          value: settingsController.horizontalStatsView,
+                          onChange: (value) => settingsController.setHorizontalStatsView(value),
                         ),
                       ],
                       const SizedBox(height: 16),

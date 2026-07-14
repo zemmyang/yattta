@@ -5,6 +5,8 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:yattta/l10n/app_localizations.dart';
 import 'package:yattta/presentation/pages/tasks.dart';
 import 'package:yattta/presentation/pages/trackers.dart';
+import 'package:yattta/presentation/pages/timers.dart';
+import 'package:yattta/presentation/pages/brain_dumps.dart';
 import 'package:yattta/utils/notification_service.dart';
 import 'package:yattta/presentation/pages/sidebar.dart';
 import 'package:yattta/presentation/pages/todos.dart';
@@ -14,6 +16,8 @@ import 'package:yattta/data/database/app_database.dart';
 import 'package:yattta/utils/seed_data.dart';
 import 'package:yattta/presentation/providers/sync_provider.dart';
 import 'package:yattta/presentation/widgets/sync_overlay.dart';
+
+final appMaxWidthProvider = StateProvider<double>((ref) => 450.0);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,20 +29,20 @@ void main() async {
   if (const bool.fromEnvironment('PRESEED_DATA', defaultValue: false)) {
     final tags = await db.tagsDao.getAllTags();
     if (tags.isEmpty) {
-      await DataSeeder(db).seed();
+      await DataSeeder(db).seed(massiveSessions: true);
     }
   }
 
   runApp(const ProviderScope(child: Application()));
 }
 
-class Application extends StatelessWidget {
+class Application extends ConsumerWidget {
   const Application({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListenableBuilder(
-      listenable: themeController,
+      listenable: Listenable.merge([themeController, settingsController]),
       builder: (context, _) => MaterialApp(
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
@@ -59,9 +63,14 @@ class Application extends StatelessWidget {
                   child: ColoredBox(
                     color: theme.colors.background,
                     child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 450),
-                        child: child!,
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final maxWidth = ref.watch(appMaxWidthProvider);
+                          return ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: maxWidth),
+                            child: child!,
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -104,6 +113,8 @@ class HomePage extends ConsumerWidget {
           InitialPage.todos => TodosPage(onMenuPressed: onMenuPressed),
           InitialPage.tasks => TasksPage(onMenuPressed: onMenuPressed),
           InitialPage.trackers => TrackersPage(onMenuPressed: onMenuPressed),
+          InitialPage.timers => TimersPage(onMenuPressed: onMenuPressed),
+          InitialPage.braindumps => BrainDumpsPage(onMenuPressed: onMenuPressed),
         };
       },
     );
